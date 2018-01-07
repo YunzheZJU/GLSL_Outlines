@@ -29,8 +29,8 @@ int main(int argc, char *argv[]) {
     GLint maxVertAttrs;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertAttrs);
     printf("Max vertex attributes available: %d.\n", maxVertAttrs);
-    if (maxVertAttrs < 5) {
-        printf("Minimum required: 5\n");
+    if (maxVertAttrs < 8) {
+        printf("Minimum required: 8\n");
         exit(EXIT_FAILURE);
     }
 

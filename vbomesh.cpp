@@ -340,11 +340,11 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     glGenVertexArrays(1, &vaoHandle);
     glBindVertexArray(vaoHandle);
 
-    int nBuffers = 13;
+    int nBuffers = 6;
     if (tc != nullptr) nBuffers++;
     if (tang != nullptr) nBuffers++;
 
-    GLuint handle[15];
+    GLuint handle[8];
     glGenBuffers(nBuffers, handle);
 
     glBindBuffer(GL_ARRAY_BUFFER, handle[0]);
@@ -430,8 +430,8 @@ void VBOMesh::addQuads(
         bool flag_bc = false;
         bool flag_ca = false;
 
-        if (i % 3000 == 0) {
-            cout << i << endl;
+        if (_i % 1000 == 0) {
+            cout << _i << " faces have been processed." << endl;
         }
 
         for (int j = 0; j < faces.size(); j += 3) {
