@@ -79,14 +79,7 @@ public:
 
 void create(
         int start,
-        int end,
-        vector<vec3> &pointsMaster,
-        vector<vec3> &normalsMaster,
-        vector<GLuint> &facesMaster,
-        vector<vector<vec3>> &normalsBesideMaster,
-        vector<float> &onEdgeMaster,
-        vector<vec3> &faceNormalsMaster
-);
+        int end);
 
 void addSingleQuad(
         int i,
@@ -97,9 +90,6 @@ void addSingleQuad(
         vector<vec3> &normalsToWrite,
         vector<GLuint> &facesToWrite,
         vector<vector<vec3>> &normalsBesideToWrite,
-        vector<float> &onEdgeToWrite,
-        const vector<vec3> &pointsMaster,
-        const vector<vec3> &normalsMaster,
-        const vector<vec3> &faceNormalsMaster);
+        vector<float> &onEdgeToWrite);
 
 #endif // VBOMESH_H
