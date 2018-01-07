@@ -3,10 +3,8 @@
 
 #include "global.h"
 #include "drawable.h"
-//#include "threads.h"
 
 #include <thread>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -48,13 +46,7 @@ private:
 
     void center(vector<vec3> &);
 
-    void addQuads(
-            vector<vec3> &points,
-            vector<vec3> &normals,
-            vector<GLuint> &faces,
-            vector<vector<vec3>> &normalsBeside,
-            vector<float> &onEdge,
-            vector<vec3> &faceNormals);
+    void addQuads();
 
 public:
     explicit VBOMesh(const char *fileName, bool reCenterMesh = false, bool loadTc = false, bool genTangents = false);
@@ -62,34 +54,11 @@ public:
     void render() const override;
 
     void loadOBJ(const char *fileName);
-
-    void addSingleQuad(
-            GLuint a1,
-            GLuint b1,
-            vector<vec3> &points,
-            vector<vec3> &normals,
-            vector<GLuint> &faces,
-            vector<vector<vec3>> &faceNormals,
-            vector<float> &onEdge,
-            vector<vec3> &faceNormal,
-            int i,
-            int j);
 };
 
 
-void create(
-        int start,
-        int end);
+void create(int start, int end, int slot);
 
-void addSingleQuad(
-        int i,
-        int j,
-        GLuint a1,
-        GLuint b1,
-        vector<vec3> &pointsToWrite,
-        vector<vec3> &normalsToWrite,
-        vector<GLuint> &facesToWrite,
-        vector<vector<vec3>> &normalsBesideToWrite,
-        vector<float> &onEdgeToWrite);
+void addSingleQuad(int i, int j, GLuint a1, GLuint b1, int slot);
 
 #endif // VBOMESH_H

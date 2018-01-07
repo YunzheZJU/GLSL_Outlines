@@ -2,7 +2,7 @@
 #include <fstream>
 #include <sstream>
 
-mutex mtx;
+vector<thread> threads;
 vector<vec3> points;
 vector<vec3> normals;
 vector<vec2> texCoords;
@@ -10,7 +10,11 @@ vector<GLuint> faces;
 vector<vector<vec3>> normalsBeside;
 vector<vec3> faceNormals;
 vector<float> onEdge;
-vector<thread> threads;
+auto pointsToWrite = new vector<vec3>[NUM_OF_THREADS];
+auto normalsToWrite = new vector<vec3>[NUM_OF_THREADS];
+auto facesToWrite = new vector<GLuint>[NUM_OF_THREADS];
+auto normalsBesideToWrite = new vector<vector<vec3>>[NUM_OF_THREADS];
+auto onEdgeToWrite = new vector<float>[NUM_OF_THREADS];
 
 VBOMesh::VBOMesh(const char *fileName, bool center, bool loadTc, bool genTangents) :
         reCenterMesh(center), loadTex(loadTc), genTang(genTangents) {
@@ -139,7 +143,7 @@ void VBOMesh::loadOBJ(const char *fileName) {
     generateNormals(points, faces, faceNormals);
 
     cout << "Adding quads" << endl;
-    addQuads(points, normals, faces, normalsBeside, onEdge, faceNormals);
+    addQuads();
 
     storeVBO(points, normals, texCoords, tangents, faces, normalsBeside, onEdge);
 
@@ -289,8 +293,8 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
                        const vector<GLuint> &elements,
                        const vector<vector<vec3>> &normalsBeside,
                        const vector<float> &onEdge) {
-    GLuint nVerts = points.size();
-    faceNum = elements.size() / 3;
+    auto nVerts = static_cast<GLuint>(points.size());
+    faceNum = static_cast<GLuint>(elements.size() / 3);
 
     auto *v = new float[3 * nVerts];
     auto *n = new float[3 * nVerts];
@@ -317,7 +321,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
         n[idx + 1] = normals[i].y;
         n[idx + 2] = normals[i].z;
         e[i] = onEdge[i];
-        nfn = normalsBeside[i].size();
+        nfn = static_cast<int>(normalsBeside[i].size());
         for (int j = 0; j < nfn; j++) {
             fn[j * 3 * nVerts + idx] = normalsBeside[i][j].x;
             fn[j * 3 * nVerts + idx + 1] = normalsBeside[i][j].y;
@@ -410,13 +414,10 @@ void VBOMesh::trimString(string &str) {
     str.erase(location + 1);
 }
 
-void VBOMesh::addQuads(
-        vector<vec3> &points,
-        vector<vec3> &normals,
-        vector<GLuint> &faces,
-        vector<vector<vec3>> &normalsBeside,
-        vector<float> &onEdge,
-        vector<vec3> &faceNormals) {
+void VBOMesh::addQuads() {
+    int time_0;
+    int time_1;
+    time_0 = clock();
     vector<vec3> newVec;
     normalsBeside.insert(normalsBeside.begin(), points.size(), newVec);
 
@@ -424,85 +425,39 @@ void VBOMesh::addQuads(
     onEdge.insert(onEdge.begin(), points.size(), 0.0);
 
     // Create quads under multiple threads
-    int facesInAll = static_cast<int>(faces.size());
+    auto facesInAll = static_cast<int>(faces.size());
     cout << facesInAll << " faces in all." << endl;
-    int facesPerThread = (facesInAll / 10) + (3 -  (facesInAll / 10 ) % 3);
-    cout << facesPerThread << " per thread." << endl;
-    for (int i = 0; i < 10 - 1; i++) {
-        threads.emplace_back(create, i * facesPerThread, (i + 1) * facesPerThread);
+    int facesPerThread = (facesInAll / NUM_OF_THREADS) + (3 - (facesInAll / NUM_OF_THREADS) % 3);
+    cout << facesPerThread << " faces per thread." << endl;
+    for (int i = 0; i < NUM_OF_THREADS - 1; i++) {
+        threads.emplace_back(create, i * facesPerThread, (i + 1) * facesPerThread, i);
     }
-    threads.emplace_back(create, (10 - 1) * facesPerThread, facesInAll);
-//    threads.emplace_back(create, 0, 9000);
-//    threads.emplace_back(create, 9000, faces.size());
-//    threads.emplace_back(create, 9000, faces.size());
+    threads.emplace_back(create, (NUM_OF_THREADS - 1) * facesPerThread, facesInAll, NUM_OF_THREADS - 1);
 
-    cout << "Waiting threads to terminate..." << endl;
     for (auto &th: threads) {
         if (th.joinable()) {
+            cout << "Join!" << endl;
             th.join();
         }
     }
-    cout << "All threads are finished." << endl;
-}
-
-void VBOMesh::addSingleQuad(
-        GLuint a1,
-        GLuint b1,
-        vector<vec3> &points,
-        vector<vec3> &normals,
-        vector<GLuint> &facesToAdd,
-        vector<vector<vec3>> &faceNormals,
-        vector<float> &onEdge,
-        vector<vec3> &faceNormal,
-        int i,
-        int j) {
-    int pointsSize = points.size();
-    // Add points
-    points.push_back(points[a1]);
-    points.push_back(points[b1]);
-    points.push_back(points[b1]);
-    points.push_back(points[b1]);
-    points.push_back(points[a1]);
-    points.push_back(points[a1]);
-    // Add normals
-    normals.push_back(normals[a1]);
-    normals.push_back(normals[b1]);
-    normals.push_back(normals[b1]);
-    normals.push_back(normals[b1]);
-    normals.push_back(normals[a1]);
-    normals.push_back(normals[a1]);
-    // Add faces
-    facesToAdd.push_back(static_cast<GLuint>(pointsSize));
-    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 1));
-    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 2));
-    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 3));
-    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 4));
-    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 5));
-    // Add face normals
-    vector<vec3> newVec_empty;
-    vector<vec3> newVec = {faceNormal[i], faceNormal[j]};
-    if (i == -1 && j == -1) {
-        newVec = {vec3(2.0), vec3(2.0)};
+    cout << "All threads are finished. Merging data to master..." << endl;
+    for (int slot = 0; slot < NUM_OF_THREADS; slot++) {
+        cout << "Data of thread " << slot << "..." << endl;
+        auto sizeOfPoints = static_cast<GLuint>(points.size());
+        points.insert(points.end(), pointsToWrite[slot].begin(), pointsToWrite[slot].end());
+        normals.insert(normals.end(), normalsToWrite[slot].begin(), normalsToWrite[slot].end());
+        for (GLuint &vertex : facesToWrite[slot]) {
+            vertex += sizeOfPoints;
+        }
+        faces.insert(faces.end(), facesToWrite[slot].begin(), facesToWrite[slot].end());
+        normalsBeside.insert(normalsBeside.end(), normalsBesideToWrite[slot].begin(), normalsBesideToWrite[slot].end());
+        onEdge.insert(onEdge.end(), onEdgeToWrite[slot].begin(), onEdgeToWrite[slot].end());
     }
-    faceNormals.push_back(newVec_empty);
-    faceNormals.push_back(newVec_empty);
-    faceNormals.push_back(newVec);
-    faceNormals.push_back(newVec);
-    faceNormals.push_back(newVec);
-    faceNormals.push_back(newVec_empty);
-    // Add onEdge
-    onEdge.insert(onEdge.end(), 6, 1.0);
+    time_1 = clock();
+    cout << "addQuads() takes " << time_1 - time_0 << " milliseconds altogether." << endl;
 }
 
-
-void create(
-        int start,
-        int end) {
-    vector<vec3> pointsToWrite;
-    vector<vec3> normalsToWrite;
-    vector<GLuint> facesToWrite;
-    vector<vector<vec3>> normalsBesideToWrite;
-    vector<float> onEdgeToWrite;
+void create(int start, int end, int slot) {
     for (int i = start; i < end; i += 3) {
         GLuint a1 = faces[i];
         GLuint b1 = faces[i + 1];
@@ -529,63 +484,63 @@ void create(
             // Edge 1 == Edge 1
             if ((a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2)) {
                 if (i < j) {
-                    addSingleQuad(_i, _j, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                    addSingleQuad(_i, _j, a1, b1, slot);
                 }
                 flag_ab = true;
             }
                 // or Edge 1 == Edge 2
             else if ((a1 == b2 && b1 == c2) || (a1 == c2 && b1 == b2)) {
                 if (i < j) {
-                    addSingleQuad(_i, _j, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                    addSingleQuad(_i, _j, a1, b1, slot);
                 }
                 flag_ab = true;
             }
                 // or Edge 1 == Edge 3
             else if ((a1 == c2 && b1 == a2) || (a1 == a2 && b1 == c2)) {
                 if (i < j) {
-                    addSingleQuad(_i, _j, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                    addSingleQuad(_i, _j, a1, b1, slot);
                 }
                 flag_ab = true;
             } else {
                 // Edge 2 == Edge 1
                 if ((b1 == a2 && c1 == b2) || (b1 == b2 && c1 == a2)) {
                     if (i < j) {
-                        addSingleQuad(_i, _j, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                        addSingleQuad(_i, _j, b1, c1, slot);
                     }
                     flag_bc = true;
                 }
                     // or Edge 2 == Edge 2
                 else if ((b1 == b2 && c1 == c2) || (b1 == c2 && c1 == b2)) {
                     if (i < j) {
-                        addSingleQuad(_i, _j, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                        addSingleQuad(_i, _j, b1, c1, slot);
                     }
                     flag_bc = true;
                 }
                     // or Edge 2 == Edge 3
                 else if ((b1 == c2 && c1 == a2) || (b1 == a2 && c1 == c2)) {
                     if (i < j) {
-                        addSingleQuad(_i, _j, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                        addSingleQuad(_i, _j, b1, c1, slot);
                     }
                     flag_bc = true;
                 } else {
                     // Edge 3 == Edge 1
                     if ((c1 == a2 && a1 == b2) || (c1 == b2 && a1 == a2)) {
                         if (i < j) {
-                            addSingleQuad(_i, _j, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                            addSingleQuad(_i, _j, c1, a1, slot);
                         }
                         flag_ca = true;
                     }
                         // or Edge 3 == Edge 2
                     else if ((c1 == b2 && a1 == c2) || (c1 == c2 && a1 == b2)) {
                         if (i < j) {
-                            addSingleQuad(_i, _j, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                            addSingleQuad(_i, _j, c1, a1, slot);
                         }
                         flag_ca = true;
                     }
                         // or Edge 3 == Edge 3
                     else if ((c1 == c2 && a1 == a2) || (c1 == a2 && a1 == c2)) {
                         if (i < j) {
-                            addSingleQuad(_i, _j, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+                            addSingleQuad(_i, _j, c1, a1, slot);
                         }
                         flag_ca = true;
                     }
@@ -593,70 +548,53 @@ void create(
             }
         }
         if (!flag_ab) {
-            addSingleQuad(-1, -1, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+            addSingleQuad(-1, -1, a1, b1, slot);
         }
         if (!flag_bc) {
-            addSingleQuad(-1, -1, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+            addSingleQuad(-1, -1, b1, c1, slot);
         }
         if (!flag_ca) {
-            addSingleQuad(-1, -1, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite);
+            addSingleQuad(-1, -1, c1, a1, slot);
         }
     }
-
-    // Merge to Master
-    mtx.lock();
-    points.insert(points.end(), pointsToWrite.begin(), pointsToWrite.end());
-    normals.insert(normals.end(), normalsToWrite.begin(), normalsToWrite.end());
-    faces.insert(faces.end(), facesToWrite.begin(), facesToWrite.end());
-    normalsBeside.insert(normalsBeside.end(), normalsBesideToWrite.begin(), normalsBesideToWrite.end());
-    onEdge.insert(onEdge.end(), onEdgeToWrite.begin(), onEdgeToWrite.end());
-    mtx.unlock();
+    cout << "Thread " << slot << " has finished its job!" << endl;
 }
 
-void addSingleQuad(
-        int i,
-        int j,
-        GLuint a1,
-        GLuint b1,
-        vector<vec3> &pointsToWrite,
-        vector<vec3> &normalsToWrite,
-        vector<GLuint> &facesToWrite,
-        vector<vector<vec3>> &normalsBesideToWrite,
-        vector<float> &onEdgeToWrite) {
-    auto pointsSize = static_cast<int>(points.size() + pointsToWrite.size());
+void addSingleQuad(int i, int j, GLuint a1, GLuint b1, int slot) {
+    auto pointsSize = static_cast<int>(pointsToWrite[slot].size());
     // Add points
-    pointsToWrite.push_back(points[a1]);
-    pointsToWrite.push_back(points[b1]);
-    pointsToWrite.push_back(points[b1]);
-    pointsToWrite.push_back(points[b1]);
-    pointsToWrite.push_back(points[a1]);
-    pointsToWrite.push_back(points[a1]);
+    pointsToWrite[slot].push_back(points[a1]);
+    pointsToWrite[slot].push_back(points[b1]);
+    pointsToWrite[slot].push_back(points[b1]);
+    pointsToWrite[slot].push_back(points[b1]);
+    pointsToWrite[slot].push_back(points[a1]);
+    pointsToWrite[slot].push_back(points[a1]);
     // Add normals
-    normalsToWrite.push_back(normals[a1]);
-    normalsToWrite.push_back(normals[b1]);
-    normalsToWrite.push_back(normals[b1]);
-    normalsToWrite.push_back(normals[b1]);
-    normalsToWrite.push_back(normals[a1]);
-    normalsToWrite.push_back(normals[a1]);
+    normalsToWrite[slot].push_back(normals[a1]);
+    normalsToWrite[slot].push_back(normals[b1]);
+    normalsToWrite[slot].push_back(normals[b1]);
+    normalsToWrite[slot].push_back(normals[b1]);
+    normalsToWrite[slot].push_back(normals[a1]);
+    normalsToWrite[slot].push_back(normals[a1]);
     // Add faces
-    facesToWrite.push_back(static_cast<GLuint>(pointsSize));
-    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 1));
-    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 2));
-    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 3));
-    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 4));
-    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 5));
+    facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize));
+    facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 1));
+    facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 2));
+    facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 3));
+    facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 4));
+    facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 5));
     // Add face normals
     vector<vec3> newVec_empty;
     vector<vec3> newVec = {faceNormals[i], faceNormals[j]};
     if (i == -1 && j == -1) {
         newVec = {vec3(2.0), vec3(2.0)};
     }
-    normalsBesideToWrite.push_back(newVec_empty);
-    normalsBesideToWrite.push_back(newVec_empty);
-    normalsBesideToWrite.push_back(newVec);
-    normalsBesideToWrite.push_back(newVec);
-    normalsBesideToWrite.push_back(newVec);
-    normalsBesideToWrite.push_back(newVec_empty);
+    normalsBesideToWrite[slot].push_back(newVec_empty);
+    normalsBesideToWrite[slot].push_back(newVec_empty);
+    normalsBesideToWrite[slot].push_back(newVec);
+    normalsBesideToWrite[slot].push_back(newVec);
+    normalsBesideToWrite[slot].push_back(newVec);
+    normalsBesideToWrite[slot].push_back(newVec_empty);
     // Add onEdge
-    onEdgeToWrite.insert(onEdgeToWrite.end(), 6, 1.0);
+    onEdgeToWrite[slot].insert(onEdgeToWrite[slot].end(), 6, 1.0);
 }
