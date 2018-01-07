@@ -15,4 +15,4 @@ link_directories(lib)
 
 add_executable(GPUBasedRendering_A2 ${SOURCE_FILES})
 
-target_link_libraries(GPUBasedRendering_A2 ${OPENGL_LIBRARIES} glut32.lib glut.lib glew32.lib glew32s.lib)
+target_link_libraries(GPUBasedRendering_A2 ${OPENGL_LIBRARIES} glew32.lib glew32s.lib freeglut.lib)
