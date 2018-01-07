@@ -6,34 +6,6 @@
 
 #include "draw.h"
 
-Shader shader = Shader();
-GLuint vaoHandle[2];
-GLuint pass1Index;
-GLuint pass2Index;
-GLuint pass3Index;
-
-void DrawScene() {
-    // Draw the half on the right
-    glUniformSubroutinesuiv(GL_TESS_EVALUATION_SHADER, 1, &pass1Index);
-    shader.setUniform("Material.Kd", 0.9f, 0.9f, 0.9f);
-    glBindVertexArray(vaoHandle[0]);
-    glDrawArrays(GL_PATCHES, 0, 4);
-    glUniformSubroutinesuiv(GL_TESS_EVALUATION_SHADER, 1, &pass3Index);
-    shader.setUniform("Material.Kd", 0.9f, 0.5f, 0.5f);
-    glBindVertexArray(vaoHandle[0]);
-    glDrawArrays(GL_PATCHES, 0, 4);
-
-    // Draw the half on the left
-    glUniformSubroutinesuiv(GL_TESS_EVALUATION_SHADER, 1, &pass1Index);
-    shader.setUniform("Material.Kd", 0.9f, 0.9f, 0.9f);
-    glBindVertexArray(vaoHandle[1]);
-    glDrawArrays(GL_PATCHES, 0, 4);
-    glUniformSubroutinesuiv(GL_TESS_EVALUATION_SHADER, 1, &pass2Index);
-    shader.setUniform("Material.Kd", 0.9f, 0.5f, 0.2f);
-    glBindVertexArray(vaoHandle[1]);
-    glDrawArrays(GL_PATCHES, 0, 4);
-}
-
 void drawLocator(GLfloat *center, GLfloat radius) {
     glDisable(GL_LIGHTING);
     glColor3f(1.0f, 1.0f, 1.0f);

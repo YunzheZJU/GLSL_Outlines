@@ -9,9 +9,7 @@
 #include "global.h"
 #include "utility.h"
 #include "draw.h"
-#include "vbotorus.h"
-#include "vboteapot.h"
-#include "vboplane.h"
+#include "vbomesh.h"
 
 // Using namespace std for cout
 using namespace std;
