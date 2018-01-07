@@ -38,10 +38,6 @@ void updateMVPZero();
 
 void updateMVPOne();
 
-void updateMVPTwo();
-
-void updateMVPThree();
-
 void updateShaderMVP();
 
 void initShader();

@@ -273,7 +273,7 @@ void VBOMesh::generateTangents(
         // Gram-Schmidt orthogonalize
         tangents[i] = vec4(glm::normalize(t1 - (glm::dot(n, t1) * n)), 0.0f);
         // Store handedness in w
-        tangents[i].w = (glm::dot(glm::cross(n, t1), t2) < 0.0f) ? -1.0f : 1.0f;
+        tangents[i].w = glm::dot(glm::cross(n, t1), t2) < 0.0f ? -1.0f : 1.0f;
     }
     tan1Accum.clear();
     tan2Accum.clear();
@@ -425,52 +425,102 @@ void VBOMesh::addQuads(
         GLuint a1 = faces[i];
         GLuint b1 = faces[i + 1];
         GLuint c1 = faces[i + 2];
+        int _i = i / 3;
+        bool flag_ab = false;
+        bool flag_bc = false;
+        bool flag_ca = false;
 
-        if (i % 1000 == 0) {
+        if (i % 3000 == 0) {
             cout << i << endl;
         }
 
-        for (int j = i + 3; j < faces.size(); j += 3) {
+        for (int j = 0; j < faces.size(); j += 3) {
             GLuint a2 = faces[j];
             GLuint b2 = faces[j + 1];
             GLuint c2 = faces[j + 2];
+            int _j = j / 3;
+
+            if (i == j) {
+                continue;
+            }
 
             // Edge 1 == Edge 1
             if ((a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2)) {
-                addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
+                if (i < j) {
+                    addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
+                }
+                flag_ab = true;
             }
                 // or Edge 1 == Edge 2
             else if ((a1 == b2 && b1 == c2) || (a1 == c2 && b1 == b2)) {
-                addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
+                if (i < j) {
+                    addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
+                }
+                flag_ab = true;
             }
                 // or Edge 1 == Edge 3
             else if ((a1 == c2 && b1 == a2) || (a1 == a2 && b1 == c2)) {
-                addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
+                if (i < j) {
+                    addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
+                }
+                flag_ab = true;
+            } else {
+                // Edge 2 == Edge 1
+                if ((b1 == a2 && c1 == b2) || (b1 == b2 && c1 == a2)) {
+                    if (i < j) {
+                        addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
+                    }
+                    flag_bc = true;
+                }
+                    // or Edge 2 == Edge 2
+                else if ((b1 == b2 && c1 == c2) || (b1 == c2 && c1 == b2)) {
+                    if (i < j) {
+                        addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
+                    }
+                    flag_bc = true;
+                }
+                    // or Edge 2 == Edge 3
+                else if ((b1 == c2 && c1 == a2) || (b1 == a2 && c1 == c2)) {
+                    if (i < j) {
+                        addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
+                    }
+                    flag_bc = true;
+                } else {
+                    // Edge 3 == Edge 1
+                    if ((c1 == a2 && a1 == b2) || (c1 == b2 && a1 == a2)) {
+                        if (i < j) {
+                            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i,
+                                          _j);
+                        }
+                        flag_ca = true;
+                    }
+                        // or Edge 3 == Edge 2
+                    else if ((c1 == b2 && a1 == c2) || (c1 == c2 && a1 == b2)) {
+                        if (i < j) {
+                            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i,
+                                          _j);
+                        }
+                        flag_ca = true;
+                    }
+                        // or Edge 3 == Edge 3
+                    else if ((c1 == c2 && a1 == a2) || (c1 == a2 && a1 == c2)) {
+                        if (i < j) {
+                            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge,
+                                          faceNormals, _i, _j);
+                        }
+                        flag_ca = true;
+                    }
+                }
             }
-            // Edge 2 == Edge 1
-            if ((b1 == a2 && c1 == b2) || (b1 == b2 && c1 == a2)) {
-                addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
-            }
-                // or Edge 2 == Edge 2
-            else if ((b1 == b2 && c1 == c2) || (b1 == c2 && c1 == b2)) {
-                addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
-            }
-                // or Edge 2 == Edge 3
-            else if ((b1 == c2 && c1 == a2) || (b1 == a2 && c1 == c2)) {
-                addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
-            }
-            // Edge 3 == Edge 1
-            if ((c1 == a2 && a1 == b2) || (c1 == b2 && a1 == a2)) {
-                addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
-            }
-                // or Edge 3 == Edge 2
-            else if ((c1 == b2 && a1 == c2) || (c1 == c2 && a1 == b2)) {
-                addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
-            }
-                // or Edge 3 == Edge 3
-            else if ((c1 == c2 && a1 == a2) || (c1 == a2 && a1 == c2)) {
-                addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
-            }
+        }
+        if (!flag_ab) {
+            addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, -1, -1);
+        }
+        if (!flag_bc) {
+            addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, -1, -1);
+        }
+        if (!flag_ca) {
+            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, -1, -1);
         }
     }
     // Append faces
@@ -513,6 +563,9 @@ void VBOMesh::addSingleQuad(
     // Add face normals
     vector<vec3> newVec_empty;
     vector<vec3> newVec = {faceNormal[i], faceNormal[j]};
+    if (i == -1 && j == -1) {
+        newVec = {vec3(2.0), vec3(2.0)};
+    }
     faceNormals.push_back(newVec_empty);
     faceNormals.push_back(newVec_empty);
     faceNormals.push_back(newVec);

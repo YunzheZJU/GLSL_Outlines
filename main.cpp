@@ -28,9 +28,10 @@ int main(int argc, char *argv[]) {
     }
     GLint maxVertAttrs;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertAttrs);
-    if (maxVertAttrs < 16) {
-        printf("Max vertex attributes available: %d. Minimum required: 16\n", maxVertAttrs);
-        exit(0);
+    printf("Max vertex attributes available: %d.\n", maxVertAttrs);
+    if (maxVertAttrs < 5) {
+        printf("Minimum required: 5\n");
+        exit(EXIT_FAILURE);
     }
 
     // Enable blending

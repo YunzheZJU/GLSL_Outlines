@@ -44,7 +44,7 @@ using glm::mat3;
 #define PI 3.1415926
 
 // Define size of locator
-#define LOCATOR_SIZE 0.1
+#define LOCATOR_SIZE 0.02
 
 // Define rotating pace in observing mode
 #define OBSERVING_PACE 0.5
@@ -54,5 +54,8 @@ using glm::mat3;
 
 // Define paning pace in fps mode: Should be 1
 #define PANNING_PACE 1
+
+// Define step of line width factor
+#define LINE_WIDTH_FACTOR_STEP 0.001
 
 #endif //GPUBASEDRENDERING_A2_GLOBAL_H

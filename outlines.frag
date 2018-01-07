@@ -39,5 +39,5 @@ vec3 phongModel(vec3 pos, vec3 norm) {
 }
 
 void main() {
-    FragColor = isEdge == 0.0 ? vec4(phongModel(Position, Normal), 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
+    FragColor = isEdge == 0.0 ? vec4(phongModel(Position, Normal), 1.0) : LineColor;
 }

@@ -21,7 +21,7 @@ void main() {
     Normal = normalize(NormalMatrix * VertexNormal);
     vec3 FNormal_0 = NormalMatrix * FaceNormal_0;
     vec3 FNormal_1 = NormalMatrix * FaceNormal_1;
-    if (FNormal_0.z * FNormal_1.z < 0) {
+    if (FNormal_0.z * FNormal_1.z < 0 || FaceNormal_0.x == 2.0) {
         Position = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0)) + LineWidthFactor * Normal;
     }
     else {
