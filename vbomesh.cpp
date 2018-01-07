@@ -442,7 +442,7 @@ void VBOMesh::addQuads() {
     }
     cout << "All threads are finished. Merging data to master..." << endl;
     for (int slot = 0; slot < NUM_OF_THREADS; slot++) {
-        cout << "Data of thread " << slot << "..." << endl;
+        cout << "Merging data of thread " << slot << "..." << endl;
         auto sizeOfPoints = static_cast<GLuint>(points.size());
         points.insert(points.end(), pointsToWrite[slot].begin(), pointsToWrite[slot].end());
         normals.insert(normals.end(), normalsToWrite[slot].begin(), normalsToWrite[slot].end());
