@@ -5,7 +5,6 @@
 //
 
 #include "system.h"
-#include "glutils.h"
 
 Shader shader = Shader();
 VBOMesh *ogre;

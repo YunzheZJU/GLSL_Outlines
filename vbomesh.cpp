@@ -2,6 +2,15 @@
 #include <fstream>
 #include <sstream>
 
+mutex mtx;
+vector<vec3> points;
+vector<vec3> normals;
+vector<vec2> texCoords;
+vector<GLuint> faces;
+vector<vector<vec3>> normalsBeside;
+vector<vec3> faceNormals;
+vector<float> onEdge;
+
 VBOMesh::VBOMesh(const char *fileName, bool center, bool loadTc, bool genTangents) :
         reCenterMesh(center), loadTex(loadTc), genTang(genTangents) {
     loadOBJ(fileName);
@@ -9,17 +18,10 @@ VBOMesh::VBOMesh(const char *fileName, bool center, bool loadTc, bool genTangent
 
 void VBOMesh::render() const {
     glBindVertexArray(vaoHandle);
-    glDrawElements(GL_TRIANGLES, 3 * faces, GL_UNSIGNED_INT, ((GLubyte *) nullptr + (0)));
+    glDrawElements(GL_TRIANGLES, 3 * faceNum, GL_UNSIGNED_INT, ((GLubyte *) nullptr + (0)));
 }
 
 void VBOMesh::loadOBJ(const char *fileName) {
-    vector<vec3> points;
-    vector<vec3> normals;
-    vector<vec2> texCoords;
-    vector<GLuint> faces;
-    vector<vector<vec3>> normalsBeside;
-    vector<vec3> faceNormals;
-    vector<float> onEdge;
 
     int nFaces = 0;
 
@@ -287,7 +289,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
                        const vector<vector<vec3>> &normalsBeside,
                        const vector<float> &onEdge) {
     GLuint nVerts = points.size();
-    faces = elements.size() / 3;
+    faceNum = elements.size() / 3;
 
     auto *v = new float[3 * nVerts];
     auto *n = new float[3 * nVerts];
@@ -383,7 +385,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle[nBuffers - 1]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * faces * sizeof(unsigned int), el, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * faceNum * sizeof(unsigned int), el, GL_STATIC_DRAW);
 
     glBindVertexArray(0);
 
@@ -413,118 +415,22 @@ void VBOMesh::addQuads(
         vector<GLuint> &faces,
         vector<vector<vec3>> &normalsBeside,
         vector<float> &onEdge,
-        vector<vec3> faceNormals) {
+        vector<vec3> &faceNormals) {
     vector<vec3> newVec;
     normalsBeside.insert(normalsBeside.begin(), points.size(), newVec);
-    vector<GLuint> facesToAdd;
 
     // Initialize onEdge
     onEdge.insert(onEdge.begin(), points.size(), 0.0);
 
-    for (int i = 0; i < faces.size(); i += 3) {
-        GLuint a1 = faces[i];
-        GLuint b1 = faces[i + 1];
-        GLuint c1 = faces[i + 2];
-        int _i = i / 3;
-        bool flag_ab = false;
-        bool flag_bc = false;
-        bool flag_ca = false;
+    // Create quads under multiple threads
+    thread calculate(create, 0, points.size());
 
-        if (_i % 1000 == 0) {
-            cout << _i << " faces have been processed." << endl;
-        }
-
-        for (int j = 0; j < faces.size(); j += 3) {
-            GLuint a2 = faces[j];
-            GLuint b2 = faces[j + 1];
-            GLuint c2 = faces[j + 2];
-            int _j = j / 3;
-
-            if (i == j) {
-                continue;
-            }
-
-            // Edge 1 == Edge 1
-            if ((a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2)) {
-                if (i < j) {
-                    addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
-                }
-                flag_ab = true;
-            }
-                // or Edge 1 == Edge 2
-            else if ((a1 == b2 && b1 == c2) || (a1 == c2 && b1 == b2)) {
-                if (i < j) {
-                    addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
-                }
-                flag_ab = true;
-            }
-                // or Edge 1 == Edge 3
-            else if ((a1 == c2 && b1 == a2) || (a1 == a2 && b1 == c2)) {
-                if (i < j) {
-                    addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
-                }
-                flag_ab = true;
-            } else {
-                // Edge 2 == Edge 1
-                if ((b1 == a2 && c1 == b2) || (b1 == b2 && c1 == a2)) {
-                    if (i < j) {
-                        addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
-                    }
-                    flag_bc = true;
-                }
-                    // or Edge 2 == Edge 2
-                else if ((b1 == b2 && c1 == c2) || (b1 == c2 && c1 == b2)) {
-                    if (i < j) {
-                        addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
-                    }
-                    flag_bc = true;
-                }
-                    // or Edge 2 == Edge 3
-                else if ((b1 == c2 && c1 == a2) || (b1 == a2 && c1 == c2)) {
-                    if (i < j) {
-                        addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i, _j);
-                    }
-                    flag_bc = true;
-                } else {
-                    // Edge 3 == Edge 1
-                    if ((c1 == a2 && a1 == b2) || (c1 == b2 && a1 == a2)) {
-                        if (i < j) {
-                            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i,
-                                          _j);
-                        }
-                        flag_ca = true;
-                    }
-                        // or Edge 3 == Edge 2
-                    else if ((c1 == b2 && a1 == c2) || (c1 == c2 && a1 == b2)) {
-                        if (i < j) {
-                            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, _i,
-                                          _j);
-                        }
-                        flag_ca = true;
-                    }
-                        // or Edge 3 == Edge 3
-                    else if ((c1 == c2 && a1 == a2) || (c1 == a2 && a1 == c2)) {
-                        if (i < j) {
-                            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge,
-                                          faceNormals, _i, _j);
-                        }
-                        flag_ca = true;
-                    }
-                }
-            }
-        }
-        if (!flag_ab) {
-            addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, -1, -1);
-        }
-        if (!flag_bc) {
-            addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, -1, -1);
-        }
-        if (!flag_ca) {
-            addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, -1, -1);
-        }
+    cout << "Waiting threads to terminate..." << endl;
+    if (calculate.joinable()) {
+        calculate.join();
     }
-    // Append faces
-    faces.insert(faces.end(), facesToAdd.begin(), facesToAdd.end());
+    cout << "All threads are finished." << endl;
+    exit(0);
 }
 
 void VBOMesh::addSingleQuad(
@@ -574,4 +480,187 @@ void VBOMesh::addSingleQuad(
     faceNormals.push_back(newVec_empty);
     // Add onEdge
     onEdge.insert(onEdge.end(), 6, 1.0);
+}
+
+
+void create(
+        int start,
+        int end) {
+    vector<vec3> pointsToWrite;
+    vector<vec3> normalsToWrite;
+    vector<GLuint> facesToWrite;
+    vector<vector<vec3>> normalsBesideToWrite;
+    vector<float> onEdgeToWrite;
+    for (int i = start; i < end; i += 3) {
+        GLuint a1 = facesMaster[i];
+        GLuint b1 = facesMaster[i + 1];
+        GLuint c1 = facesMaster[i + 2];
+        int _i = i / 3;
+        bool flag_ab = false;
+        bool flag_bc = false;
+        bool flag_ca = false;
+
+        if (_i % 1000 == 0) {
+            cout << _i << endl;
+        }
+
+
+        for (int j = 0; j < facesMaster.size(); j += 3) {
+            GLuint a2 = facesMaster[j];
+            GLuint b2 = facesMaster[j + 1];
+            GLuint c2 = facesMaster[j + 2];
+            int _j = j / 3;
+
+            if (i == j) {
+                continue;
+            }
+
+            // Edge 1 == Edge 1
+            if ((a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2)) {
+                if (i < j) {
+                    addSingleQuad(_i, _j, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                  normalsMaster, faceNormalsMaster);
+                }
+                flag_ab = true;
+            }
+                // or Edge 1 == Edge 2
+            else if ((a1 == b2 && b1 == c2) || (a1 == c2 && b1 == b2)) {
+                if (i < j) {
+                    addSingleQuad(_i, _j, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                  normalsMaster, faceNormalsMaster);
+                }
+                flag_ab = true;
+            }
+                // or Edge 1 == Edge 3
+            else if ((a1 == c2 && b1 == a2) || (a1 == a2 && b1 == c2)) {
+                if (i < j) {
+                    addSingleQuad(_i, _j, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                  normalsMaster, faceNormalsMaster);
+                }
+                flag_ab = true;
+            } else {
+                // Edge 2 == Edge 1
+                if ((b1 == a2 && c1 == b2) || (b1 == b2 && c1 == a2)) {
+                    if (i < j) {
+                        addSingleQuad(_i, _j, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                      normalsMaster, faceNormalsMaster);
+                    }
+                    flag_bc = true;
+                }
+                    // or Edge 2 == Edge 2
+                else if ((b1 == b2 && c1 == c2) || (b1 == c2 && c1 == b2)) {
+                    if (i < j) {
+                        addSingleQuad(_i, _j, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                      normalsMaster, faceNormalsMaster);
+                    }
+                    flag_bc = true;
+                }
+                    // or Edge 2 == Edge 3
+                else if ((b1 == c2 && c1 == a2) || (b1 == a2 && c1 == c2)) {
+                    if (i < j) {
+                        addSingleQuad(_i, _j, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                      normalsMaster, faceNormalsMaster);
+                    }
+                    flag_bc = true;
+                } else {
+                    // Edge 3 == Edge 1
+                    if ((c1 == a2 && a1 == b2) || (c1 == b2 && a1 == a2)) {
+                        if (i < j) {
+                            addSingleQuad(_i, _j, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                          normalsMaster, faceNormalsMaster);
+                        }
+                        flag_ca = true;
+                    }
+                        // or Edge 3 == Edge 2
+                    else if ((c1 == b2 && a1 == c2) || (c1 == c2 && a1 == b2)) {
+                        if (i < j) {
+                            addSingleQuad(_i, _j, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                          normalsMaster, faceNormalsMaster);
+                        }
+                        flag_ca = true;
+                    }
+                        // or Edge 3 == Edge 3
+                    else if ((c1 == c2 && a1 == a2) || (c1 == a2 && a1 == c2)) {
+                        if (i < j) {
+                            addSingleQuad(_i, _j, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster,
+                                          normalsMaster, faceNormalsMaster);
+                        }
+                        flag_ca = true;
+                    }
+                }
+            }
+        }
+        if (!flag_ab) {
+            addSingleQuad(-1, -1, a1, b1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster, normalsMaster,
+                          faceNormalsMaster);
+        }
+        if (!flag_bc) {
+            addSingleQuad(-1, -1, b1, c1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster, normalsMaster,
+                          faceNormalsMaster);
+        }
+        if (!flag_ca) {
+            addSingleQuad(-1, -1, c1, a1, pointsToWrite, normalsToWrite, facesToWrite, normalsBesideToWrite, onEdgeToWrite, pointsMaster, normalsMaster,
+                          faceNormalsMaster);
+        }
+    }
+
+    // Merge to master
+    mtx.lock();
+    pointsMaster.insert(pointsMaster.end(), pointsToWrite.begin(), pointsToWrite.end());
+    normalsMaster.insert(normalsMaster.end(), normalsToWrite.begin(), normalsToWrite.end());
+    facesMaster.insert(facesMaster.end(), facesToWrite.begin(), facesToWrite.end());
+    normalsBesideMaster.insert(normalsBesideMaster.end(), normalsBesideToWrite.begin(), normalsBesideToWrite.end());
+    onEdgeMaster.insert(onEdgeMaster.end(), onEdgeToWrite.begin(), onEdgeToWrite.end());
+    mtx.unlock();
+}
+
+void addSingleQuad(
+        int i,
+        int j,
+        GLuint a1,
+        GLuint b1,
+        vector<vec3> &pointsToWrite,
+        vector<vec3> &normalsToWrite,
+        vector<GLuint> &facesToWrite,
+        vector<vector<vec3>> &normalsBesideToWrite,
+        vector<float> &onEdgeToWrite,
+        const vector<vec3> &pointsMaster,
+        const vector<vec3> &normalsMaster,
+        const vector<vec3> &faceNormalsMaster) {
+    auto pointsSize = static_cast<int>(pointsToWrite.size());
+    // Add points
+    pointsToWrite.push_back(pointsMaster[a1]);
+    pointsToWrite.push_back(pointsMaster[b1]);
+    pointsToWrite.push_back(pointsMaster[b1]);
+    pointsToWrite.push_back(pointsMaster[b1]);
+    pointsToWrite.push_back(pointsMaster[a1]);
+    pointsToWrite.push_back(pointsMaster[a1]);
+    // Add normals
+    normalsToWrite.push_back(normalsMaster[a1]);
+    normalsToWrite.push_back(normalsMaster[b1]);
+    normalsToWrite.push_back(normalsMaster[b1]);
+    normalsToWrite.push_back(normalsMaster[b1]);
+    normalsToWrite.push_back(normalsMaster[a1]);
+    normalsToWrite.push_back(normalsMaster[a1]);
+    // Add faces
+    facesToWrite.push_back(static_cast<GLuint>(pointsSize));
+    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 1));
+    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 2));
+    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 3));
+    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 4));
+    facesToWrite.push_back(static_cast<GLuint>(pointsSize + 5));
+    // Add face normals
+    vector<vec3> newVec_empty;
+    vector<vec3> newVec = {faceNormalsMaster[i], faceNormalsMaster[j]};
+    if (i == -1 && j == -1) {
+        newVec = {vec3(2.0), vec3(2.0)};
+    }
+    normalsBesideToWrite.push_back(newVec_empty);
+    normalsBesideToWrite.push_back(newVec_empty);
+    normalsBesideToWrite.push_back(newVec);
+    normalsBesideToWrite.push_back(newVec);
+    normalsBesideToWrite.push_back(newVec);
+    normalsBesideToWrite.push_back(newVec_empty);
+    // Add onEdge
+    onEdgeToWrite.insert(onEdgeToWrite.end(), 6, 1.0);
 }

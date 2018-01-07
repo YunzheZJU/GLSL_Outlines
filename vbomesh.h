@@ -3,7 +3,10 @@
 
 #include "global.h"
 #include "drawable.h"
+//#include "threads.h"
 
+#include <thread>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -11,7 +14,7 @@ using namespace std;
 
 class VBOMesh : public Drawable {
 private:
-    GLuint faces;
+    GLuint faceNum;
     GLuint vaoHandle;
 
     bool reCenterMesh, loadTex, genTang;
@@ -51,7 +54,14 @@ private:
             vector<GLuint> &faces,
             vector<vector<vec3>> &normalsBeside,
             vector<float> &onEdge,
-            vector<vec3> faceNormals);
+            vector<vec3> &faceNormals);
+
+public:
+    explicit VBOMesh(const char *fileName, bool reCenterMesh = false, bool loadTc = false, bool genTangents = false);
+
+    void render() const override;
+
+    void loadOBJ(const char *fileName);
 
     void addSingleQuad(
             GLuint a1,
@@ -64,13 +74,32 @@ private:
             vector<vec3> &faceNormal,
             int i,
             int j);
-
-public:
-    explicit VBOMesh(const char *fileName, bool reCenterMesh = false, bool loadTc = false, bool genTangents = false);
-
-    void render() const override;
-
-    void loadOBJ(const char *fileName);
 };
+
+
+void create(
+        int start,
+        int end,
+        vector<vec3> &pointsMaster,
+        vector<vec3> &normalsMaster,
+        vector<GLuint> &facesMaster,
+        vector<vector<vec3>> &normalsBesideMaster,
+        vector<float> &onEdgeMaster,
+        vector<vec3> &faceNormalsMaster
+);
+
+void addSingleQuad(
+        int i,
+        int j,
+        GLuint a1,
+        GLuint b1,
+        vector<vec3> &pointsToWrite,
+        vector<vec3> &normalsToWrite,
+        vector<GLuint> &facesToWrite,
+        vector<vector<vec3>> &normalsBesideToWrite,
+        vector<float> &onEdgeToWrite,
+        const vector<vec3> &pointsMaster,
+        const vector<vec3> &normalsMaster,
+        const vector<vec3> &faceNormalsMaster);
 
 #endif // VBOMESH_H

@@ -10,6 +10,7 @@
 #include "utility.h"
 #include "draw.h"
 #include "vbomesh.h"
+#include "glutils.h"
 
 // Using namespace std for cout
 using namespace std;
