@@ -9,7 +9,7 @@ VBOMesh::VBOMesh(const char *fileName, bool center, bool loadTc, bool genTangent
 
 void VBOMesh::render() const {
     glBindVertexArray(vaoHandle);
-    glDrawElements(GL_TRIANGLES, 3 * faces, GL_UNSIGNED_INT, ((GLubyte *) NULL + (0)));
+    glDrawElements(GL_TRIANGLES, 3 * faces, GL_UNSIGNED_INT, ((GLubyte *) nullptr + (0)));
 }
 
 void VBOMesh::loadOBJ(const char *fileName) {
@@ -17,7 +17,8 @@ void VBOMesh::loadOBJ(const char *fileName) {
     vector<vec3> normals;
     vector<vec2> texCoords;
     vector<GLuint> faces;
-    vector<vector<vec3>> faceNormals;
+    vector<vector<vec3>> normalsBeside;
+    vector<vec3> faceNormals;
     vector<float> onEdge;
 
     int nFaces = 0;
@@ -43,16 +44,16 @@ void VBOMesh::loadOBJ(const char *fileName) {
             if (token == "v") {
                 float x, y, z;
                 lineStream >> x >> y >> z;
-                points.push_back(vec3(x, y, z));
+                points.emplace_back(x, y, z);
             } else if (token == "vt" && loadTex) {
                 // Process texture coordinate
                 float s, t;
                 lineStream >> s >> t;
-                texCoords.push_back(vec2(s, t));
+                texCoords.emplace_back(s, t);
             } else if (token == "vn") {
                 float x, y, z;
                 lineStream >> x >> y >> z;
-                normals.push_back(vec3(x, y, z));
+                normals.emplace_back(x, y, z);
             } else if (token == "f") {
                 nFaces++;
 
@@ -63,23 +64,18 @@ void VBOMesh::loadOBJ(const char *fileName) {
                 while (lineStream.good()) {
                     string vertString;
                     lineStream >> vertString;
-                    int pIndex = -1, nIndex = -1, tcIndex = -1;
+                    int pIndex, nIndex = -1, tcIndex = -1;
 
-                    slash1 = vertString.find("/");
+                    slash1 = vertString.find('/');
                     if (slash1 == string::npos) {
-                        pIndex = atoi(vertString.c_str()) - 1;
+                        pIndex = strtol(vertString.c_str(), nullptr, 10) - 1;
                     } else {
-                        slash2 = vertString.find("/", slash1 + 1);
-                        pIndex = atoi(vertString.substr(0, slash1).c_str())
-                                 - 1;
+                        slash2 = vertString.find('/', slash1 + 1);
+                        pIndex = strtol(vertString.substr(0, slash1).c_str(), nullptr, 10) - 1;
                         if (slash2 > slash1 + 1) {
-                            tcIndex =
-                                    atoi(vertString.substr(slash1 + 1, slash2).c_str())
-                                    - 1;
+                            tcIndex = strtol(vertString.substr(slash1 + 1, slash2).c_str(), nullptr, 10) - 1;
                         }
-                        nIndex =
-                                atoi(vertString.substr(slash2 + 1, vertString.length()).c_str())
-                                - 1;
+                        nIndex = strtol(vertString.substr(slash2 + 1, vertString.length()).c_str(), nullptr, 10) - 1;
                     }
                     if (pIndex == -1) {
                         printf("Missing point index!!!");
@@ -101,20 +97,20 @@ void VBOMesh::loadOBJ(const char *fileName) {
                     int v1 = face[1];
                     int v2 = face[2];
                     // First face
-                    faces.push_back(v0);
-                    faces.push_back(v1);
-                    faces.push_back(v2);
+                    faces.push_back(static_cast<GLuint>(v0));
+                    faces.push_back(static_cast<GLuint>(v1));
+                    faces.push_back(static_cast<GLuint>(v2));
                     for (GLuint i = 3; i < face.size(); i++) {
                         v1 = v2;
                         v2 = face[i];
-                        faces.push_back(v0);
-                        faces.push_back(v1);
-                        faces.push_back(v2);
+                        faces.push_back(static_cast<GLuint>(v0));
+                        faces.push_back(static_cast<GLuint>(v1));
+                        faces.push_back(static_cast<GLuint>(v2));
                     }
                 } else {
-                    faces.push_back(face[0]);
-                    faces.push_back(face[1]);
-                    faces.push_back(face[2]);
+                    faces.push_back(static_cast<GLuint>(face[0]));
+                    faces.push_back(static_cast<GLuint>(face[1]));
+                    faces.push_back(static_cast<GLuint>(face[2]));
                 }
             }
         }
@@ -123,12 +119,12 @@ void VBOMesh::loadOBJ(const char *fileName) {
 
     objStream.close();
 
-    if (normals.size() == 0) {
+    if (normals.empty()) {
         generateAveragedNormals(points, normals, faces);
     }
 
     vector<vec4> tangents;
-    if (genTang && texCoords.size() > 0) {
+    if (genTang && !texCoords.empty()) {
         generateTangents(points, normals, faces, texCoords, tangents);
     }
 
@@ -136,13 +132,13 @@ void VBOMesh::loadOBJ(const char *fileName) {
         center(points);
     }
 
-//    cout << "Generating face normals" << endl;
-//    generateNormals(points, faces, faceNormals);
+    cout << "Generating face normals" << endl;
+    generateNormals(points, faces, faceNormals);
 
     cout << "Adding quads" << endl;
-    addQuads(points, normals, faces, faceNormals, onEdge);
+    addQuads(points, normals, faces, normalsBeside, onEdge, faceNormals);
 
-    storeVBO(points, normals, texCoords, tangents, faces, faceNormals, onEdge);
+    storeVBO(points, normals, texCoords, tangents, faces, normalsBeside, onEdge);
 
     cout << "Loaded mesh from: " << fileName << endl;
     cout << " " << points.size() << " points" << endl;
@@ -154,14 +150,13 @@ void VBOMesh::loadOBJ(const char *fileName) {
 }
 
 void VBOMesh::center(vector<vec3> &points) {
-    if (points.size() < 1) return;
+    if (points.empty()) return;
 
     vec3 maxPoint = points[0];
     vec3 minPoint = points[0];
 
     // Find the AABB
-    for (GLuint i = 0; i < points.size(); ++i) {
-        vec3 &point = points[i];
+    for (auto &point : points) {
         if (point.x > maxPoint.x) maxPoint.x = point.x;
         if (point.y > maxPoint.y) maxPoint.y = point.y;
         if (point.z > maxPoint.z) maxPoint.z = point.z;
@@ -176,8 +171,7 @@ void VBOMesh::center(vector<vec3> &points) {
                        (maxPoint.z + minPoint.z) / 2.0f);
 
     // Translate center of the AABB to the origin
-    for (GLuint i = 0; i < points.size(); ++i) {
-        vec3 &point = points[i];
+    for (auto &point : points) {
         point = point - center;
     }
 }
@@ -187,7 +181,7 @@ void VBOMesh::generateAveragedNormals(
         vector<vec3> &normals,
         const vector<GLuint> &faces) {
     for (GLuint i = 0; i < points.size(); i++) {
-        normals.push_back(vec3(0.0f));
+        normals.emplace_back(0.0f);
     }
 
     for (GLuint i = 0; i < faces.size(); i += 3) {
@@ -204,19 +198,15 @@ void VBOMesh::generateAveragedNormals(
         normals[faces[i + 2]] += n;
     }
 
-    for (GLuint i = 0; i < normals.size(); i++) {
-        normals[i] = glm::normalize(normals[i]);
+    for (auto &normal : normals) {
+        normal = glm::normalize(normal);
     }
 }
 
 void VBOMesh::generateNormals(
         const vector<vec3> &points,
         const vector<GLuint> &faces,
-        vector<vector<vec3>> &faceNormals) {
-    vector<vec3> newVec;
-    for (GLuint i = 0; i < points.size(); i++) {
-        faceNormals.push_back(newVec);
-    }
+        vector<vec3> &faceNormals) {
 
     for (GLuint i = 0; i < faces.size(); i += 3) {
         const vec3 &p1 = points[faces[i]];
@@ -227,9 +217,7 @@ void VBOMesh::generateNormals(
         vec3 b = p3 - p1;
         vec3 n = glm::normalize(glm::cross(a, b));
 
-        faceNormals[faces[i]].push_back(n);
-        faceNormals[faces[i + 1]].push_back(n);
-        faceNormals[faces[i + 2]].push_back(n);
+        faceNormals.push_back(n);
     }
 }
 
@@ -243,9 +231,9 @@ void VBOMesh::generateTangents(
     vector<vec3> tan2Accum;
 
     for (GLuint i = 0; i < points.size(); i++) {
-        tan1Accum.push_back(vec3(0.0f));
-        tan2Accum.push_back(vec3(0.0f));
-        tangents.push_back(vec4(0.0f));
+        tan1Accum.emplace_back(0.0f);
+        tan2Accum.emplace_back(0.0f);
+        tangents.emplace_back(0.0f);
     }
 
     // Compute the tangent vector
@@ -296,32 +284,26 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
                        const vector<vec2> &texCoords,
                        const vector<vec4> &tangents,
                        const vector<GLuint> &elements,
-                       const vector<vector<vec3>> &faceNormals,
+                       const vector<vector<vec3>> &normalsBeside,
                        const vector<float> &onEdge) {
-    GLuint nVerts = GLuint(points.size());
-    faces = GLuint(elements.size() / 3);
+    GLuint nVerts = points.size();
+    faces = elements.size() / 3;
 
-    float *v = new float[3 * nVerts];
-    float *n = new float[3 * nVerts];
-    float *tc = NULL;
-    float *tang = NULL;
+    auto *v = new float[3 * nVerts];
+    auto *n = new float[3 * nVerts];
+    float *tc = nullptr;
+    float *tang = nullptr;
     int nfn = 0;
-    float *fn = new float[9 * 3 * nVerts];
-    float *fn_0 = new float[3 * nVerts];
-    float *fn_1 = new float[3 * nVerts];
-    float *fn_2 = new float[3 * nVerts];
-    float *fn_3 = new float[3 * nVerts];
-    float *fn_4 = new float[3 * nVerts];
-    float *fn_5 = new float[3 * nVerts];
-    float *e = new float[nVerts];
+    auto *fn = new float[9 * 3 * nVerts];
+    auto *e = new float[nVerts];
 
-    if (texCoords.size() > 0) {
+    if (!texCoords.empty()) {
         tc = new float[2 * nVerts];
-        if (tangents.size() > 0)
+        if (!tangents.empty())
             tang = new float[4 * nVerts];
     }
 
-    unsigned int *el = new unsigned int[elements.size()];
+    auto *el = new unsigned int[elements.size()];
 
     int idx = 0, tcIdx = 0, tangIdx = 0;
     for (GLuint i = 0; i < nVerts; ++i) {
@@ -332,49 +314,19 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
         n[idx + 1] = normals[i].y;
         n[idx + 2] = normals[i].z;
         e[i] = onEdge[i];
-        nfn = faceNormals[i].size();
+        nfn = normalsBeside[i].size();
         for (int j = 0; j < nfn; j++) {
-            fn[j * 3 * nVerts + idx] = faceNormals[i][j].x;
-            fn[j * 3 * nVerts + idx + 1] = faceNormals[i][j].y;
-            fn[j * 3 * nVerts + idx + 2] = faceNormals[i][j].z;
+            fn[j * 3 * nVerts + idx] = normalsBeside[i][j].x;
+            fn[j * 3 * nVerts + idx + 1] = normalsBeside[i][j].y;
+            fn[j * 3 * nVerts + idx + 2] = normalsBeside[i][j].z;
         }
-//        if (nfn >= 1) {
-//            fn_0[idx] = faceNormals[i][0].x;
-//            fn_0[idx + 1] = faceNormals[i][0].y;
-//            fn_0[idx + 2] = faceNormals[i][0].z;
-//        }
-//        if (nfn >= 2) {
-//            fn_1[idx] = faceNormals[i][1].x;
-//            fn_1[idx + 1] = faceNormals[i][1].y;
-//            fn_1[idx + 2] = faceNormals[i][1].z;
-//        }
-//        if (nfn >= 3) {
-//            fn_2[idx] = faceNormals[i][2].x;
-//            fn_2[idx + 1] = faceNormals[i][2].y;
-//            fn_2[idx + 2] = faceNormals[i][2].z;
-//        }
-//        if (nfn >= 4) {
-//            fn_3[idx] = faceNormals[i][3].x;
-//            fn_3[idx + 1] = faceNormals[i][3].y;
-//            fn_3[idx + 2] = faceNormals[i][3].z;
-//        }
-//        if (nfn >= 5) {
-//            fn_4[idx] = faceNormals[i][4].x;
-//            fn_4[idx + 1] = faceNormals[i][4].y;
-//            fn_4[idx + 2] = faceNormals[i][4].z;
-//        }
-//        if (nfn >= 6) {
-//            fn_5[idx] = faceNormals[i][5].x;
-//            fn_5[idx + 1] = faceNormals[i][5].y;
-//            fn_5[idx + 2] = faceNormals[i][5].z;
-//        }
         idx += 3;
-        if (tc != NULL) {
+        if (tc != nullptr) {
             tc[tcIdx] = texCoords[i].x;
             tc[tcIdx + 1] = texCoords[i].y;
             tcIdx += 2;
         }
-        if (tang != NULL) {
+        if (tang != nullptr) {
             tang[tangIdx] = tangents[i].x;
             tang[tangIdx + 1] = tangents[i].y;
             tang[tangIdx + 2] = tangents[i].z;
@@ -389,80 +341,45 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     glBindVertexArray(vaoHandle);
 
     int nBuffers = 13;
-    if (tc != NULL) nBuffers++;
-    if (tang != NULL) nBuffers++;
+    if (tc != nullptr) nBuffers++;
+    if (tang != nullptr) nBuffers++;
 
     GLuint handle[15];
     glGenBuffers(nBuffers, handle);
 
     glBindBuffer(GL_ARRAY_BUFFER, handle[0]);
     glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), v, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 0, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+    glVertexAttribPointer((GLuint) 0, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) nullptr + (0)));
     glEnableVertexAttribArray(0);  // Vertex position
 
     glBindBuffer(GL_ARRAY_BUFFER, handle[1]);
     glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), n, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 1, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+    glVertexAttribPointer((GLuint) 1, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) nullptr + (0)));
     glEnableVertexAttribArray(1);  // Vertex normal
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 2; i++) {
         glBindBuffer(GL_ARRAY_BUFFER, handle[2 + i]);
         glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn + i * 3 * nVerts, GL_STATIC_DRAW);
-        glVertexAttribPointer((GLuint) 2 + i, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-        glEnableVertexAttribArray(2 + i);  // Face normal i
+        glVertexAttribPointer((GLuint) 2 + i, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) nullptr + (0)));
+        glEnableVertexAttribArray(static_cast<GLuint>(2 + i));  // Face normal i
     }
-//    glBindBuffer(GL_ARRAY_BUFFER, handle[2]);
-//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_0, GL_STATIC_DRAW);
-//    glVertexAttribPointer((GLuint) 2, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-//    glEnableVertexAttribArray(2);  // Face normal 0
-//
-//
-//    glBindBuffer(GL_ARRAY_BUFFER, handle[2]);
-//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_0, GL_STATIC_DRAW);
-//    glVertexAttribPointer((GLuint) 2, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-//    glEnableVertexAttribArray(2);  // Face normal 0
-//
-//    glBindBuffer(GL_ARRAY_BUFFER, handle[3]);
-//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_1, GL_STATIC_DRAW);
-//    glVertexAttribPointer((GLuint) 3, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-//    glEnableVertexAttribArray(3);  // Face normal 1
-//
-//    glBindBuffer(GL_ARRAY_BUFFER, handle[4]);
-//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_2, GL_STATIC_DRAW);
-//    glVertexAttribPointer((GLuint) 4, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-//    glEnableVertexAttribArray(4);  // Face normal 2
-//
-//    glBindBuffer(GL_ARRAY_BUFFER, handle[5]);
-//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_3, GL_STATIC_DRAW);
-//    glVertexAttribPointer((GLuint) 5, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-//    glEnableVertexAttribArray(5);  // Face normal 3
-//
-//    glBindBuffer(GL_ARRAY_BUFFER, handle[6]);
-//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_4, GL_STATIC_DRAW);
-//    glVertexAttribPointer((GLuint) 6, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-//    glEnableVertexAttribArray(6);  // Face normal 4
-//
-//    glBindBuffer(GL_ARRAY_BUFFER, handle[7]);
-//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_5, GL_STATIC_DRAW);
-//    glVertexAttribPointer((GLuint) 7, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-//    glEnableVertexAttribArray(7);  // Face normal 5
 
-    glBindBuffer(GL_ARRAY_BUFFER, handle[11]);
+    glBindBuffer(GL_ARRAY_BUFFER, handle[4]);
     glBufferData(GL_ARRAY_BUFFER, nVerts * sizeof(float), e, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 11, 1, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(11);  // On Edge
+    glVertexAttribPointer((GLuint) 4, 1, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) nullptr + (0)));
+    glEnableVertexAttribArray(4);  // On Edge
 
-    if (tc != NULL) {
-        glBindBuffer(GL_ARRAY_BUFFER, handle[12]);
+    if (tc != nullptr) {
+        glBindBuffer(GL_ARRAY_BUFFER, handle[5]);
         glBufferData(GL_ARRAY_BUFFER, (2 * nVerts) * sizeof(float), tc, GL_STATIC_DRAW);
-        glVertexAttribPointer((GLuint) 12, 2, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-        glEnableVertexAttribArray(12);  // Texture coords
+        glVertexAttribPointer((GLuint) 5, 2, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) nullptr + (0)));
+        glEnableVertexAttribArray(5);  // Texture coords
     }
-    if (tang != NULL) {
-        glBindBuffer(GL_ARRAY_BUFFER, handle[13]);
+    if (tang != nullptr) {
+        glBindBuffer(GL_ARRAY_BUFFER, handle[6]);
         glBufferData(GL_ARRAY_BUFFER, (4 * nVerts) * sizeof(float), tang, GL_STATIC_DRAW);
-        glVertexAttribPointer((GLuint) 13, 4, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-        glEnableVertexAttribArray(13);  // Tangent vector
+        glVertexAttribPointer((GLuint) 6, 4, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) nullptr + (0)));
+        glEnableVertexAttribArray(6);  // Tangent vector
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle[nBuffers - 1]);
@@ -473,16 +390,10 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     // Clean up
     delete[] v;
     delete[] n;
-    if (tc != NULL) delete[] tc;
-    if (tang != NULL) delete[] tang;
+    delete[] tc;
+    delete[] tang;
     delete[] el;
     delete[] fn;
-    delete[] fn_0;
-    delete[] fn_1;
-    delete[] fn_2;
-    delete[] fn_3;
-    delete[] fn_4;
-    delete[] fn_5;
     delete[] e;
     printf("End storeVBO\n");
 }
@@ -500,10 +411,12 @@ void VBOMesh::addQuads(
         vector<vec3> &points,
         vector<vec3> &normals,
         vector<GLuint> &faces,
-        vector<vector<vec3>> &faceNormals,
-        vector<float> &onEdge) {
+        vector<vector<vec3>> &normalsBeside,
+        vector<float> &onEdge,
+        vector<vec3> faceNormals) {
+    vector<vec3> newVec;
+    normalsBeside.insert(normalsBeside.begin(), points.size(), newVec);
     vector<GLuint> facesToAdd;
-    int fnSize = faceNormals.size();
 
     // Initialize onEdge
     onEdge.insert(onEdge.begin(), points.size(), 0.0);
@@ -513,6 +426,10 @@ void VBOMesh::addQuads(
         GLuint b1 = faces[i + 1];
         GLuint c1 = faces[i + 2];
 
+        if (i % 1000 == 0) {
+            cout << i << endl;
+        }
+
         for (int j = i + 3; j < faces.size(); j += 3) {
             GLuint a2 = faces[j];
             GLuint b2 = faces[j + 1];
@@ -520,56 +437,44 @@ void VBOMesh::addQuads(
 
             // Edge 1 == Edge 1
             if ((a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2)) {
-                addSingleQuad(a1, b1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
                 // or Edge 1 == Edge 2
             else if ((a1 == b2 && b1 == c2) || (a1 == c2 && b1 == b2)) {
-                addSingleQuad(a1, b1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
                 // or Edge 1 == Edge 3
             else if ((a1 == c2 && b1 == a2) || (a1 == a2 && b1 == c2)) {
-                addSingleQuad(a1, b1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(a1, b1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
             // Edge 2 == Edge 1
             if ((b1 == a2 && c1 == b2) || (b1 == b2 && c1 == a2)) {
-                addSingleQuad(b1, c1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
                 // or Edge 2 == Edge 2
             else if ((b1 == b2 && c1 == c2) || (b1 == c2 && c1 == b2)) {
-                addSingleQuad(b1, c1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
                 // or Edge 2 == Edge 3
             else if ((b1 == c2 && c1 == a2) || (b1 == a2 && c1 == c2)) {
-                addSingleQuad(b1, c1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(b1, c1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
             // Edge 3 == Edge 1
             if ((c1 == a2 && a1 == b2) || (c1 == b2 && a1 == a2)) {
-                addSingleQuad(c1, a1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
                 // or Edge 3 == Edge 2
             else if ((c1 == b2 && a1 == c2) || (c1 == c2 && a1 == b2)) {
-                addSingleQuad(c1, a1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
                 // or Edge 3 == Edge 3
             else if ((c1 == c2 && a1 == a2) || (c1 == a2 && a1 == c2)) {
-                addSingleQuad(c1, a1, points, normals, facesToAdd, faceNormals, onEdge);
+                addSingleQuad(c1, a1, points, normals, facesToAdd, normalsBeside, onEdge, faceNormals, i / 3, j / 3);
             }
         }
     }
     // Append faces
-    vector<GLuint>::iterator it = faces.end();
-    faces.insert(it, facesToAdd.begin(), facesToAdd.end());
-    // Clear face normals of points on the surface
-    for (int i = 0; i < fnSize; i++) {
-        faceNormals[i].clear();
-    }
-    int count = 0;
-    for (int i = fnSize; i < faceNormals.size(); i++) {
-        if (faceNormals[i].size() > count) {
-            count = faceNormals[i].size();
-        }
-    }
-    cout << "Max count: " << count << endl;
+    faces.insert(faces.end(), facesToAdd.begin(), facesToAdd.end());
 }
 
 void VBOMesh::addSingleQuad(
@@ -579,7 +484,10 @@ void VBOMesh::addSingleQuad(
         vector<vec3> &normals,
         vector<GLuint> &facesToAdd,
         vector<vector<vec3>> &faceNormals,
-        vector<float> &onEdge) {
+        vector<float> &onEdge,
+        vector<vec3> &faceNormal,
+        int i,
+        int j) {
     int pointsSize = points.size();
     // Add points
     points.push_back(points[a1]);
@@ -589,10 +497,6 @@ void VBOMesh::addSingleQuad(
     points.push_back(points[a1]);
     points.push_back(points[a1]);
     // Add normals
-//    vec3 n = glm::normalize(glm::cross(points[a1] - points[b1], normals[b1]));
-//    n = vec3(1.0);
-//    vector<vec3>::iterator it = normals.end();
-//    normals.insert(it, 6, n);
     normals.push_back(normals[a1]);
     normals.push_back(normals[b1]);
     normals.push_back(normals[b1]);
@@ -600,20 +504,21 @@ void VBOMesh::addSingleQuad(
     normals.push_back(normals[a1]);
     normals.push_back(normals[a1]);
     // Add faces
-    facesToAdd.push_back(pointsSize);
-    facesToAdd.push_back(pointsSize + 1);
-    facesToAdd.push_back(pointsSize + 2);
-    facesToAdd.push_back(pointsSize + 3);
-    facesToAdd.push_back(pointsSize + 4);
-    facesToAdd.push_back(pointsSize + 5);
+    facesToAdd.push_back(static_cast<GLuint>(pointsSize));
+    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 1));
+    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 2));
+    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 3));
+    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 4));
+    facesToAdd.push_back(static_cast<GLuint>(pointsSize + 5));
     // Add face normals
-    vector<vec3> newVec;
+    vector<vec3> newVec_empty;
+    vector<vec3> newVec = {faceNormal[i], faceNormal[j]};
+    faceNormals.push_back(newVec_empty);
+    faceNormals.push_back(newVec_empty);
     faceNormals.push_back(newVec);
     faceNormals.push_back(newVec);
-    faceNormals.push_back(faceNormals[b1]);
-    faceNormals.push_back(faceNormals[b1]);
-    faceNormals.push_back(faceNormals[a1]);
     faceNormals.push_back(newVec);
+    faceNormals.push_back(newVec_empty);
     // Add onEdge
     onEdge.insert(onEdge.end(), 6, 1.0);
 }

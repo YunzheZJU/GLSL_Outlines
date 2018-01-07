@@ -23,7 +23,7 @@ private:
                   const vector<vec2> &texCoords,
                   const vector<vec4> &tangents,
                   const vector<GLuint> &elements,
-                  const vector<vector<vec3>> &faceNormals,
+                  const vector<vector<vec3>> &normalsBeside,
                   const vector<float> &onEdge);
 
     void generateAveragedNormals(
@@ -34,7 +34,7 @@ private:
     void generateNormals(
             const vector<vec3> &points,
             const vector<GLuint> &faces,
-            vector<vector<vec3>> &faceNormals);
+            vector<vec3> &faceNormals);
 
     void generateTangents(
             const vector<vec3> &points,
@@ -49,8 +49,9 @@ private:
             vector<vec3> &points,
             vector<vec3> &normals,
             vector<GLuint> &faces,
-            vector<vector<vec3>> &faceNormals,
-            vector<float> &onEdge);
+            vector<vector<vec3>> &normalsBeside,
+            vector<float> &onEdge,
+            vector<vec3> faceNormals);
 
     void addSingleQuad(
             GLuint a1,
@@ -59,13 +60,15 @@ private:
             vector<vec3> &normals,
             vector<GLuint> &faces,
             vector<vector<vec3>> &faceNormals,
-            vector<float> &onEdge
-    );
+            vector<float> &onEdge,
+            vector<vec3> &faceNormal,
+            int i,
+            int j);
 
 public:
-    VBOMesh(const char *fileName, bool reCenterMesh = false, bool loadTc = false, bool genTangents = false);
+    explicit VBOMesh(const char *fileName, bool reCenterMesh = false, bool loadTc = false, bool genTangents = false);
 
-    void render() const;
+    void render() const override;
 
     void loadOBJ(const char *fileName);
 };
