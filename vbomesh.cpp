@@ -136,8 +136,8 @@ void VBOMesh::loadOBJ(const char *fileName) {
         center(points);
     }
 
-    cout << "Generating face normals" << endl;
-    generateNormals(points, faces, faceNormals);
+//    cout << "Generating face normals" << endl;
+//    generateNormals(points, faces, faceNormals);
 
     cout << "Adding quads" << endl;
     addQuads(points, normals, faces, faceNormals, onEdge);
@@ -306,6 +306,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     float *tc = NULL;
     float *tang = NULL;
     int nfn = 0;
+    float *fn = new float[9 * 3 * nVerts];
     float *fn_0 = new float[3 * nVerts];
     float *fn_1 = new float[3 * nVerts];
     float *fn_2 = new float[3 * nVerts];
@@ -332,36 +333,41 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
         n[idx + 2] = normals[i].z;
         e[i] = onEdge[i];
         nfn = faceNormals[i].size();
-        if (nfn >= 1) {
-            fn_0[idx] = faceNormals[i][0].x;
-            fn_0[idx + 1] = faceNormals[i][0].y;
-            fn_0[idx + 2] = faceNormals[i][0].z;
+        for (int j = 0; j < nfn; j++) {
+            fn[j * 3 * nVerts + idx] = faceNormals[i][j].x;
+            fn[j * 3 * nVerts + idx + 1] = faceNormals[i][j].y;
+            fn[j * 3 * nVerts + idx + 2] = faceNormals[i][j].z;
         }
-        if (nfn >= 2) {
-            fn_1[idx] = faceNormals[i][1].x;
-            fn_1[idx + 1] = faceNormals[i][1].y;
-            fn_1[idx + 2] = faceNormals[i][1].z;
-        }
-        if (nfn >= 3) {
-            fn_2[idx] = faceNormals[i][2].x;
-            fn_2[idx + 1] = faceNormals[i][2].y;
-            fn_2[idx + 2] = faceNormals[i][2].z;
-        }
-        if (nfn >= 4) {
-            fn_3[idx] = faceNormals[i][3].x;
-            fn_3[idx + 1] = faceNormals[i][3].y;
-            fn_3[idx + 2] = faceNormals[i][3].z;
-        }
-        if (nfn >= 5) {
-            fn_4[idx] = faceNormals[i][4].x;
-            fn_4[idx + 1] = faceNormals[i][4].y;
-            fn_4[idx + 2] = faceNormals[i][4].z;
-        }
-        if (nfn >= 6) {
-            fn_5[idx] = faceNormals[i][5].x;
-            fn_5[idx + 1] = faceNormals[i][5].y;
-            fn_5[idx + 2] = faceNormals[i][5].z;
-        }
+//        if (nfn >= 1) {
+//            fn_0[idx] = faceNormals[i][0].x;
+//            fn_0[idx + 1] = faceNormals[i][0].y;
+//            fn_0[idx + 2] = faceNormals[i][0].z;
+//        }
+//        if (nfn >= 2) {
+//            fn_1[idx] = faceNormals[i][1].x;
+//            fn_1[idx + 1] = faceNormals[i][1].y;
+//            fn_1[idx + 2] = faceNormals[i][1].z;
+//        }
+//        if (nfn >= 3) {
+//            fn_2[idx] = faceNormals[i][2].x;
+//            fn_2[idx + 1] = faceNormals[i][2].y;
+//            fn_2[idx + 2] = faceNormals[i][2].z;
+//        }
+//        if (nfn >= 4) {
+//            fn_3[idx] = faceNormals[i][3].x;
+//            fn_3[idx + 1] = faceNormals[i][3].y;
+//            fn_3[idx + 2] = faceNormals[i][3].z;
+//        }
+//        if (nfn >= 5) {
+//            fn_4[idx] = faceNormals[i][4].x;
+//            fn_4[idx + 1] = faceNormals[i][4].y;
+//            fn_4[idx + 2] = faceNormals[i][4].z;
+//        }
+//        if (nfn >= 6) {
+//            fn_5[idx] = faceNormals[i][5].x;
+//            fn_5[idx + 1] = faceNormals[i][5].y;
+//            fn_5[idx + 2] = faceNormals[i][5].z;
+//        }
         idx += 3;
         if (tc != NULL) {
             tc[tcIdx] = texCoords[i].x;
@@ -382,11 +388,11 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     glGenVertexArrays(1, &vaoHandle);
     glBindVertexArray(vaoHandle);
 
-    int nBuffers = 10;
+    int nBuffers = 13;
     if (tc != NULL) nBuffers++;
     if (tang != NULL) nBuffers++;
 
-    GLuint handle[11];
+    GLuint handle[15];
     glGenBuffers(nBuffers, handle);
 
     glBindBuffer(GL_ARRAY_BUFFER, handle[0]);
@@ -399,52 +405,64 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     glVertexAttribPointer((GLuint) 1, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
     glEnableVertexAttribArray(1);  // Vertex normal
 
-    glBindBuffer(GL_ARRAY_BUFFER, handle[2]);
-    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_0, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 2, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(2);  // Face normal 0
+    for (int i = 0; i < 9; i++) {
+        glBindBuffer(GL_ARRAY_BUFFER, handle[2 + i]);
+        glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn + i * 3 * nVerts, GL_STATIC_DRAW);
+        glVertexAttribPointer((GLuint) 2 + i, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+        glEnableVertexAttribArray(2 + i);  // Face normal i
+    }
+//    glBindBuffer(GL_ARRAY_BUFFER, handle[2]);
+//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_0, GL_STATIC_DRAW);
+//    glVertexAttribPointer((GLuint) 2, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+//    glEnableVertexAttribArray(2);  // Face normal 0
+//
+//
+//    glBindBuffer(GL_ARRAY_BUFFER, handle[2]);
+//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_0, GL_STATIC_DRAW);
+//    glVertexAttribPointer((GLuint) 2, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+//    glEnableVertexAttribArray(2);  // Face normal 0
+//
+//    glBindBuffer(GL_ARRAY_BUFFER, handle[3]);
+//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_1, GL_STATIC_DRAW);
+//    glVertexAttribPointer((GLuint) 3, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+//    glEnableVertexAttribArray(3);  // Face normal 1
+//
+//    glBindBuffer(GL_ARRAY_BUFFER, handle[4]);
+//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_2, GL_STATIC_DRAW);
+//    glVertexAttribPointer((GLuint) 4, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+//    glEnableVertexAttribArray(4);  // Face normal 2
+//
+//    glBindBuffer(GL_ARRAY_BUFFER, handle[5]);
+//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_3, GL_STATIC_DRAW);
+//    glVertexAttribPointer((GLuint) 5, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+//    glEnableVertexAttribArray(5);  // Face normal 3
+//
+//    glBindBuffer(GL_ARRAY_BUFFER, handle[6]);
+//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_4, GL_STATIC_DRAW);
+//    glVertexAttribPointer((GLuint) 6, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+//    glEnableVertexAttribArray(6);  // Face normal 4
+//
+//    glBindBuffer(GL_ARRAY_BUFFER, handle[7]);
+//    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_5, GL_STATIC_DRAW);
+//    glVertexAttribPointer((GLuint) 7, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+//    glEnableVertexAttribArray(7);  // Face normal 5
 
-    glBindBuffer(GL_ARRAY_BUFFER, handle[3]);
-    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_1, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 3, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(3);  // Face normal 1
-
-    glBindBuffer(GL_ARRAY_BUFFER, handle[4]);
-    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_2, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 4, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(4);  // Face normal 2
-
-    glBindBuffer(GL_ARRAY_BUFFER, handle[5]);
-    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_3, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 5, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(5);  // Face normal 3
-
-    glBindBuffer(GL_ARRAY_BUFFER, handle[6]);
-    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_4, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 6, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(6);  // Face normal 4
-
-    glBindBuffer(GL_ARRAY_BUFFER, handle[7]);
-    glBufferData(GL_ARRAY_BUFFER, (3 * nVerts) * sizeof(float), fn_5, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 7, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(7);  // Face normal 5
-
-    glBindBuffer(GL_ARRAY_BUFFER, handle[8]);
+    glBindBuffer(GL_ARRAY_BUFFER, handle[11]);
     glBufferData(GL_ARRAY_BUFFER, nVerts * sizeof(float), e, GL_STATIC_DRAW);
-    glVertexAttribPointer((GLuint) 8, 1, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-    glEnableVertexAttribArray(8);  // On Edge
+    glVertexAttribPointer((GLuint) 11, 1, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+    glEnableVertexAttribArray(11);  // On Edge
 
     if (tc != NULL) {
-        glBindBuffer(GL_ARRAY_BUFFER, handle[9]);
+        glBindBuffer(GL_ARRAY_BUFFER, handle[12]);
         glBufferData(GL_ARRAY_BUFFER, (2 * nVerts) * sizeof(float), tc, GL_STATIC_DRAW);
-        glVertexAttribPointer((GLuint) 2, 2, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-        glEnableVertexAttribArray(2);  // Texture coords
+        glVertexAttribPointer((GLuint) 12, 2, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+        glEnableVertexAttribArray(12);  // Texture coords
     }
     if (tang != NULL) {
-        glBindBuffer(GL_ARRAY_BUFFER, handle[10]);
+        glBindBuffer(GL_ARRAY_BUFFER, handle[13]);
         glBufferData(GL_ARRAY_BUFFER, (4 * nVerts) * sizeof(float), tang, GL_STATIC_DRAW);
-        glVertexAttribPointer((GLuint) 3, 4, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
-        glEnableVertexAttribArray(3);  // Tangent vector
+        glVertexAttribPointer((GLuint) 13, 4, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+        glEnableVertexAttribArray(13);  // Tangent vector
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle[nBuffers - 1]);
@@ -458,6 +476,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     if (tc != NULL) delete[] tc;
     if (tang != NULL) delete[] tang;
     delete[] el;
+    delete[] fn;
     delete[] fn_0;
     delete[] fn_1;
     delete[] fn_2;
@@ -544,6 +563,13 @@ void VBOMesh::addQuads(
     for (int i = 0; i < fnSize; i++) {
         faceNormals[i].clear();
     }
+    int count = 0;
+    for (int i = fnSize; i < faceNormals.size(); i++) {
+        if (faceNormals[i].size() > count) {
+            count = faceNormals[i].size();
+        }
+    }
+    cout << "Max count: " << count << endl;
 }
 
 void VBOMesh::addSingleQuad(
@@ -563,10 +589,16 @@ void VBOMesh::addSingleQuad(
     points.push_back(points[a1]);
     points.push_back(points[a1]);
     // Add normals
-    vec3 n = glm::normalize(glm::cross(points[a1] - points[b1], normals[b1]));
-    n = vec3(1.0);
-    vector<vec3>::iterator it = normals.end();
-    normals.insert(it, 6, n);
+//    vec3 n = glm::normalize(glm::cross(points[a1] - points[b1], normals[b1]));
+//    n = vec3(1.0);
+//    vector<vec3>::iterator it = normals.end();
+//    normals.insert(it, 6, n);
+    normals.push_back(normals[a1]);
+    normals.push_back(normals[b1]);
+    normals.push_back(normals[b1]);
+    normals.push_back(normals[b1]);
+    normals.push_back(normals[a1]);
+    normals.push_back(normals[a1]);
     // Add faces
     facesToAdd.push_back(pointsSize);
     facesToAdd.push_back(pointsSize + 1);

@@ -17,7 +17,7 @@ uniform MaterialInfo Material;
 uniform vec4 LineColor;
 
 in vec3 VPosition;
-in vec3 VNormal;
+flat in vec3 VNormal;
 in float isEdge;
 
 layout(location = 0) out vec4 FragColor;
@@ -40,5 +40,6 @@ vec3 phongModel(vec3 pos, vec3 norm) {
 
 void main() {
 //    FragColor = vec4(phongModel(VPosition, VNormal), 1.0);
-    FragColor = vec4(mix(phongModel(VPosition, VNormal), vec3(1.0, 0.0, 0.0), isEdge), 1.0);
+//    FragColor = vec4(mix(phongModel(VPosition, VNormal), vec3(1.0, 0.0, 0.0), isEdge), 1.0);
+    FragColor = isEdge == 0.0 ? vec4(phongModel(VPosition, VNormal), 1.0) : vec4(1.0, 0.0, 0.0, 0.3);
 }

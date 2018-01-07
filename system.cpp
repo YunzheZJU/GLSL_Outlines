@@ -68,7 +68,7 @@ void Redraw() {
     } else {
         glDisable(GL_MULTISAMPLE_ARB);
     }
-//    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
     // Draw something here
     updateMVPZero();
     updateMVPOne();
