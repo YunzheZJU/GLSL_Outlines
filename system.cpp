@@ -68,14 +68,14 @@ void Redraw() {
     } else {
         glDisable(GL_MULTISAMPLE_ARB);
     }
-    angle += 0.5f;
-    glEnable(GL_DEPTH_TEST);
+//    glEnable(GL_DEPTH_TEST);
     // Draw something here
     updateMVPZero();
     updateMVPOne();
     ogre->render();
 //    DrawScene();
     shader.disable();
+    angle += 0.5f;
     // Draw crosshair and locator in fps mode, or target when in observing mode(fpsmode == 0).
     if (fpsmode == 0) {
         glDisable(GL_DEPTH_TEST);
@@ -449,10 +449,6 @@ void setShader() {
     shader.setUniform("Material.Shininess", 100.0f);
     /////////////////////////////////////////////
     updateShaderMVP();
-
-    GLint maxVertAttrs;
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertAttrs);
-    printf("Max vertex Attributes: %d\n", maxVertAttrs);
 }
 
 void updateMVPZero() {
@@ -463,7 +459,7 @@ void updateMVPZero() {
 
 void updateMVPOne() {
     model = mat4(1.0f);
-    model = glm::rotate(model, glm::radians(angle), vec3(0.0f, 1.0f, 0.0f));
+//    model = glm::rotate(model, glm::radians(angle), vec3(0.0f, 1.0f, 0.0f));
 //    model = glm::rotate(model, glm::radians(-90.0f), vec3(1.0f, 0.0f, 0.0f));
 
     updateShaderMVP();
@@ -500,7 +496,7 @@ void updateMVPThree() {
 void updateShaderMVP() {
     mat4 mv = view * model;
     shader.setUniform("ModelViewMatrix", mv);
-//    shader.setUniform("ProjectionMatrix", projection);
+    shader.setUniform("ProjectionMatrix", projection);
     shader.setUniform("NormalMatrix", mat3(vec3(mv[0]), vec3(mv[1]), vec3(mv[2])));
     shader.setUniform("MVP", projection * mv);
 //    shader.setUniform("ViewportMatrix", viewport);

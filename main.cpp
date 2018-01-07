@@ -26,6 +26,12 @@ int main(int argc, char *argv[]) {
         cerr << "OpenGL 4.3 is not supported" << endl;
         exit(1);
     }
+    GLint maxVertAttrs;
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertAttrs);
+    if (maxVertAttrs < 16) {
+        printf("Max vertex attributes available: %d. Minimum required: 16\n", maxVertAttrs);
+        exit(0);
+    }
 
     initShader();
     initVBO();

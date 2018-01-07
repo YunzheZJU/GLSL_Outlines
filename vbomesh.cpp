@@ -13,12 +13,12 @@ void VBOMesh::render() const {
 }
 
 void VBOMesh::loadOBJ(const char *fileName) {
-
     vector<vec3> points;
     vector<vec3> normals;
     vector<vec2> texCoords;
     vector<GLuint> faces;
-    vector<vector<vec3>> faceNormal;
+    vector<vector<vec3>> faceNormals;
+    vector<float> onEdge;
 
     int nFaces = 0;
 
@@ -137,13 +137,16 @@ void VBOMesh::loadOBJ(const char *fileName) {
     }
 
     cout << "Generating face normals" << endl;
-    generateNormals(points, faces, faceNormal);
+    generateNormals(points, faces, faceNormals);
 
-    storeVBO(points, normals, texCoords, tangents, faces, faceNormal);
+    cout << "Adding quads" << endl;
+    addQuads(points, normals, faces, faceNormals, onEdge);
+
+    storeVBO(points, normals, texCoords, tangents, faces, faceNormals, onEdge);
 
     cout << "Loaded mesh from: " << fileName << endl;
     cout << " " << points.size() << " points" << endl;
-    cout << " " << nFaces << " faces" << endl;
+    cout << " " << nFaces << " original faces" << endl;
     cout << " " << faces.size() / 3 << " triangles." << endl;
     cout << " " << normals.size() << " normals" << endl;
     cout << " " << tangents.size() << " tangents " << endl;
@@ -206,7 +209,6 @@ void VBOMesh::generateAveragedNormals(
     }
 }
 
-// TODO: 为每条边复制一个由两个三角形组成的矩形出来，位置复制，法向量随意
 void VBOMesh::generateNormals(
         const vector<vec3> &points,
         const vector<GLuint> &faces,
@@ -294,7 +296,8 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
                        const vector<vec2> &texCoords,
                        const vector<vec4> &tangents,
                        const vector<GLuint> &elements,
-                       const vector<vector<vec3>> &faceNormals) {
+                       const vector<vector<vec3>> &faceNormals,
+                       const vector<float> &onEdge) {
     GLuint nVerts = GLuint(points.size());
     faces = GLuint(elements.size() / 3);
 
@@ -309,6 +312,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     float *fn_3 = new float[3 * nVerts];
     float *fn_4 = new float[3 * nVerts];
     float *fn_5 = new float[3 * nVerts];
+    float *e = new float[nVerts];
 
     if (texCoords.size() > 0) {
         tc = new float[2 * nVerts];
@@ -326,6 +330,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
         n[idx] = normals[i].x;
         n[idx + 1] = normals[i].y;
         n[idx + 2] = normals[i].z;
+        e[i] = onEdge[i];
         nfn = faceNormals[i].size();
         if (nfn >= 1) {
             fn_0[idx] = faceNormals[i][0].x;
@@ -377,7 +382,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     glGenVertexArrays(1, &vaoHandle);
     glBindVertexArray(vaoHandle);
 
-    int nBuffers = 9;
+    int nBuffers = 10;
     if (tc != NULL) nBuffers++;
     if (tang != NULL) nBuffers++;
 
@@ -424,14 +429,19 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     glVertexAttribPointer((GLuint) 7, 3, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
     glEnableVertexAttribArray(7);  // Face normal 5
 
+    glBindBuffer(GL_ARRAY_BUFFER, handle[8]);
+    glBufferData(GL_ARRAY_BUFFER, nVerts * sizeof(float), e, GL_STATIC_DRAW);
+    glVertexAttribPointer((GLuint) 8, 1, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
+    glEnableVertexAttribArray(8);  // On Edge
+
     if (tc != NULL) {
-        glBindBuffer(GL_ARRAY_BUFFER, handle[8]);
+        glBindBuffer(GL_ARRAY_BUFFER, handle[9]);
         glBufferData(GL_ARRAY_BUFFER, (2 * nVerts) * sizeof(float), tc, GL_STATIC_DRAW);
         glVertexAttribPointer((GLuint) 2, 2, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
         glEnableVertexAttribArray(2);  // Texture coords
     }
     if (tang != NULL) {
-        glBindBuffer(GL_ARRAY_BUFFER, handle[9]);
+        glBindBuffer(GL_ARRAY_BUFFER, handle[10]);
         glBufferData(GL_ARRAY_BUFFER, (4 * nVerts) * sizeof(float), tang, GL_STATIC_DRAW);
         glVertexAttribPointer((GLuint) 3, 4, GL_FLOAT, GL_FALSE, 0, ((GLubyte *) NULL + (0)));
         glEnableVertexAttribArray(3);  // Tangent vector
@@ -448,6 +458,13 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     if (tc != NULL) delete[] tc;
     if (tang != NULL) delete[] tang;
     delete[] el;
+    delete[] fn_0;
+    delete[] fn_1;
+    delete[] fn_2;
+    delete[] fn_3;
+    delete[] fn_4;
+    delete[] fn_5;
+    delete[] e;
     printf("End storeVBO\n");
 }
 
@@ -458,4 +475,113 @@ void VBOMesh::trimString(string &str) {
     str.erase(0, location);
     location = str.find_last_not_of(whiteSpace);
     str.erase(location + 1);
+}
+
+void VBOMesh::addQuads(
+        vector<vec3> &points,
+        vector<vec3> &normals,
+        vector<GLuint> &faces,
+        vector<vector<vec3>> &faceNormals,
+        vector<float> &onEdge) {
+    vector<GLuint> facesToAdd;
+    int fnSize = faceNormals.size();
+
+    // Initialize onEdge
+    onEdge.insert(onEdge.begin(), points.size(), 0.0);
+
+    for (int i = 0; i < faces.size(); i += 3) {
+        GLuint a1 = faces[i];
+        GLuint b1 = faces[i + 1];
+        GLuint c1 = faces[i + 2];
+
+        for (int j = i + 3; j < faces.size(); j += 3) {
+            GLuint a2 = faces[j];
+            GLuint b2 = faces[j + 1];
+            GLuint c2 = faces[j + 2];
+
+            // Edge 1 == Edge 1
+            if ((a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2)) {
+                addSingleQuad(a1, b1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+                // or Edge 1 == Edge 2
+            else if ((a1 == b2 && b1 == c2) || (a1 == c2 && b1 == b2)) {
+                addSingleQuad(a1, b1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+                // or Edge 1 == Edge 3
+            else if ((a1 == c2 && b1 == a2) || (a1 == a2 && b1 == c2)) {
+                addSingleQuad(a1, b1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+            // Edge 2 == Edge 1
+            if ((b1 == a2 && c1 == b2) || (b1 == b2 && c1 == a2)) {
+                addSingleQuad(b1, c1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+                // or Edge 2 == Edge 2
+            else if ((b1 == b2 && c1 == c2) || (b1 == c2 && c1 == b2)) {
+                addSingleQuad(b1, c1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+                // or Edge 2 == Edge 3
+            else if ((b1 == c2 && c1 == a2) || (b1 == a2 && c1 == c2)) {
+                addSingleQuad(b1, c1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+            // Edge 3 == Edge 1
+            if ((c1 == a2 && a1 == b2) || (c1 == b2 && a1 == a2)) {
+                addSingleQuad(c1, a1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+                // or Edge 3 == Edge 2
+            else if ((c1 == b2 && a1 == c2) || (c1 == c2 && a1 == b2)) {
+                addSingleQuad(c1, a1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+                // or Edge 3 == Edge 3
+            else if ((c1 == c2 && a1 == a2) || (c1 == a2 && a1 == c2)) {
+                addSingleQuad(c1, a1, points, normals, facesToAdd, faceNormals, onEdge);
+            }
+        }
+    }
+    // Append faces
+    vector<GLuint>::iterator it = faces.end();
+    faces.insert(it, facesToAdd.begin(), facesToAdd.end());
+    // Clear face normals of points on the surface
+    for (int i = 0; i < fnSize; i++) {
+        faceNormals[i].clear();
+    }
+}
+
+void VBOMesh::addSingleQuad(
+        GLuint a1,
+        GLuint b1,
+        vector<vec3> &points,
+        vector<vec3> &normals,
+        vector<GLuint> &facesToAdd,
+        vector<vector<vec3>> &faceNormals,
+        vector<float> &onEdge) {
+    int pointsSize = points.size();
+    // Add points
+    points.push_back(points[a1]);
+    points.push_back(points[b1]);
+    points.push_back(points[b1]);
+    points.push_back(points[b1]);
+    points.push_back(points[a1]);
+    points.push_back(points[a1]);
+    // Add normals
+    vec3 n = glm::normalize(glm::cross(points[a1] - points[b1], normals[b1]));
+    n = vec3(1.0);
+    vector<vec3>::iterator it = normals.end();
+    normals.insert(it, 6, n);
+    // Add faces
+    facesToAdd.push_back(pointsSize);
+    facesToAdd.push_back(pointsSize + 1);
+    facesToAdd.push_back(pointsSize + 2);
+    facesToAdd.push_back(pointsSize + 3);
+    facesToAdd.push_back(pointsSize + 4);
+    facesToAdd.push_back(pointsSize + 5);
+    // Add face normals
+    vector<vec3> newVec;
+    faceNormals.push_back(newVec);
+    faceNormals.push_back(newVec);
+    faceNormals.push_back(faceNormals[b1]);
+    faceNormals.push_back(faceNormals[b1]);
+    faceNormals.push_back(faceNormals[a1]);
+    faceNormals.push_back(newVec);
+    // Add onEdge
+    onEdge.insert(onEdge.end(), 6, 1.0);
 }

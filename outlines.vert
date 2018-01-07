@@ -8,6 +8,7 @@ layout(location = 4) in vec3 FaceNormal_2;
 layout(location = 5) in vec3 FaceNormal_3;
 layout(location = 6) in vec3 FaceNormal_4;
 layout(location = 7) in vec3 FaceNormal_5;
+layout(location = 8) in float onEdge;
 
 out vec3 VNormal;
 out vec3 VPosition;
@@ -15,6 +16,7 @@ out float isEdge;
 
 uniform mat4 ModelViewMatrix;
 uniform mat3 NormalMatrix;
+uniform mat4 ProjectionMatrix;
 uniform mat4 MVP;
 
 void main() {
@@ -30,12 +32,12 @@ void main() {
         FNormal_3.z * FNormal_4.z < 0 ||
         FNormal_4.z * FNormal_5.z < 0 ||
         FNormal_5.z * FNormal_0.z < 0) {
-        isEdge = 1.0;
+        VPosition = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0)) * 1.02;
     }
     else {
-        isEdge = 0.0;
+        VPosition = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0));
     }
+    isEdge = onEdge;
     VNormal = normalize(NormalMatrix * VertexNormal);
-    VPosition = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0));
-    gl_Position = MVP * vec4(VertexPosition, 1.0);
+    gl_Position = ProjectionMatrix * vec4(VPosition, 1.0);
 }

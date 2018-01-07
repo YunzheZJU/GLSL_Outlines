@@ -23,6 +23,9 @@ in float isEdge;
 layout(location = 0) out vec4 FragColor;
 
 vec3 phongModel(vec3 pos, vec3 norm) {
+    if (!gl_FrontFacing) {
+        norm = -norm;
+    }
     vec3 s = normalize(vec3(Light.Position) - pos);
     vec3 v = normalize(-pos.xyz);
     vec3 r = reflect(-s, norm);
