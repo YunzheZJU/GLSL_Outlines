@@ -6,7 +6,8 @@ int main(int argc, char *argv[]) {
     getline(cin, stringNumOfThreads);
     int decision = string2int(stringNumOfThreads);
     if (decision > 0) {
-        cout << "Your decision: " << NUM_OF_THREADS << "." << endl;
+        cout << "Your decision: " << decision << "." << endl;
+        numOfThreads = decision;
     } else {
         cout << "Invalid input: " << stringNumOfThreads << ". Default number will be used." << endl;
     }

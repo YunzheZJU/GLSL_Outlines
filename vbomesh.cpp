@@ -1,6 +1,6 @@
 #include "vbomesh.h"
 
-int NUM_OF_THREADS = 4;
+int numOfThreads = 4;
 vector<thread> threads;
 vector<vec3> points;
 vector<vec3> normals;
@@ -10,13 +10,13 @@ vector<vec3> faceNormals;
 vector<float> onEdge;
 vector<vec2> texCoords;
 vector<vec4> tangents;
-auto pointsToWrite = new vector<vec3>[NUM_OF_THREADS];
-auto normalsToWrite = new vector<vec3>[NUM_OF_THREADS];
-auto facesToWrite = new vector<GLuint>[NUM_OF_THREADS];
-auto normalsBesideToWrite = new vector<vector<vec3>>[NUM_OF_THREADS];
-auto onEdgeToWrite = new vector<float>[NUM_OF_THREADS];
-auto texCoordsToWrite = new vector<vec2>[NUM_OF_THREADS];
-auto tangentsToWrite = new vector<vec4>[NUM_OF_THREADS];
+auto pointsToWrite = new vector<vec3>[numOfThreads];
+auto normalsToWrite = new vector<vec3>[numOfThreads];
+auto facesToWrite = new vector<GLuint>[numOfThreads];
+auto normalsBesideToWrite = new vector<vector<vec3>>[numOfThreads];
+auto onEdgeToWrite = new vector<float>[numOfThreads];
+auto texCoordsToWrite = new vector<vec2>[numOfThreads];
+auto tangentsToWrite = new vector<vec4>[numOfThreads];
 
 VBOMesh::VBOMesh(const char *fileName, bool center, bool loadTc, bool genTangents) :
         reCenterMesh(center), loadTex(loadTc), genTang(genTangents) {
@@ -448,12 +448,12 @@ void VBOMesh::addQuads() {
     // Create quads under multiple threads
     auto facesInAll = static_cast<int>(faces.size());
     cout << facesInAll << " faces in all." << endl;
-    int facesPerThread = (facesInAll / NUM_OF_THREADS) + (3 - (facesInAll / NUM_OF_THREADS) % 3);
+    int facesPerThread = (facesInAll / numOfThreads) + (3 - (facesInAll / numOfThreads) % 3);
     cout << facesPerThread << " faces per thread." << endl;
-    for (int i = 0; i < NUM_OF_THREADS - 1; i++) {
+    for (int i = 0; i < numOfThreads - 1; i++) {
         threads.emplace_back(create, i * facesPerThread, (i + 1) * facesPerThread, i);
     }
-    threads.emplace_back(create, (NUM_OF_THREADS - 1) * facesPerThread, facesInAll, NUM_OF_THREADS - 1);
+    threads.emplace_back(create, (numOfThreads - 1) * facesPerThread, facesInAll, numOfThreads - 1);
 
     for (auto &th: threads) {
         if (th.joinable()) {
@@ -465,7 +465,7 @@ void VBOMesh::addQuads() {
     time_1 = clock();
     cout << fixed << setprecision(3) << "Calculating data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
     time_0 = clock();
-    for (int slot = 0; slot < NUM_OF_THREADS; slot++) {
+    for (int slot = 0; slot < numOfThreads; slot++) {
         cout << "Merging data of thread " << slot << "..." << endl;
         auto sizeOfPoints = static_cast<GLuint>(points.size());
         points.insert(points.end(), pointsToWrite[slot].begin(), pointsToWrite[slot].end());

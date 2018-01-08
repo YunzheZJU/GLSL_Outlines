@@ -10,7 +10,7 @@
 
 using namespace std;
 
-extern int NUM_OF_THREADS;
+extern int numOfThreads;
 
 class VBOMesh : public Drawable {
 private:
