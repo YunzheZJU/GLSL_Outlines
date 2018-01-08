@@ -16,7 +16,6 @@ uniform LightInfo Light;
 
 struct MaterialInfo {
     vec3 Ka;            // Ambient reflectivity
-//    vec3 Kd;            // Diffuse reflectivity
     vec3 Ks;            // Specular reflectivity
     float Shininess;    // Specular shininess factor
 };

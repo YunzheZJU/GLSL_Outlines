@@ -22,7 +22,6 @@ int window[2] = {1280, 720};                        // Window size
 int windowCenter[2];                                // Center of this window, to be updated
 char message[70] = "Welcome!";                      // Message string to be shown
 bool bMsaa = false;                                 // Switch of Multisampling anti-alias
-bool bShader = true;                                // Switch of shader
 bool bCamera = true;                                // Switch of camera/target control
 bool bFocus = true;                                 // Status of window focus
 bool bMouse = false;                                // Whether mouse postion should be moved
@@ -102,9 +101,6 @@ void ProcessMouseClick(int button, int state, int x, int y) {
         cout << "LMB pressed. Switch on/off multisampling anti-alias.\n" << endl;
         strcpy(message, "LMB pressed. Switch on/off multisampling anti-alias.");
         glutPostRedisplay();
-    } else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN && fpsMode) {
-//        processPick(window);
-        bShader = !bShader;
     }
 }
 
@@ -151,10 +147,10 @@ void ProcessMouseMove(int x, int y) {
 
 void ProcessFocus(int state) {
     if (state == GLUT_LEFT) {
-        bFocus = GL_FALSE;
+        bFocus = false;
         cout << "Focus is on other window." << endl;
     } else if (state == GLUT_ENTERED) {
-        bFocus = GL_TRUE;
+        bFocus = true;
         cout << "Focus is on this window." << endl;
     }
 }
@@ -451,7 +447,6 @@ void setShader() {
     shader.setUniform("Light.Position", vec4(0.0f, 0.0f, 10.0f, 1.0f));
     shader.setUniform("Light.Intensity", 1.0f, 1.0f, 1.0f);
     shader.setUniform("Material.Ka", 0.2f, 0.2f, 0.2f);
-    shader.setUniform("Material.Kd", 0.7f, 0.7f, 0.7f);
     shader.setUniform("Material.Ks", 0.8f, 0.8f, 0.8f);
     shader.setUniform("Material.Shininess", 100.0f);
     /////////////////////////////////////////////
@@ -484,7 +479,6 @@ void updateShaderMVP() {
     shader.setUniform("ModelViewMatrix", mv);
     shader.setUniform("ProjectionMatrix", projection);
     shader.setUniform("NormalMatrix", mat3(vec3(mv[0]), vec3(mv[1]), vec3(mv[2])));
-    shader.setUniform("MVP", projection * mv);
 }
 
 void initShader() {

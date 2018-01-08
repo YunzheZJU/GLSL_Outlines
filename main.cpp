@@ -2,14 +2,15 @@
 
 int main(int argc, char *argv[]) {
     string stringNumOfThreads;
-    cout << "Enter the number of threads you want to use (Default is 4): " << endl;
+    cout << "Enter the number of threads you want to use (Default is " << DEFAULT_NUM_OF_THREADS << "): " << endl;
     getline(cin, stringNumOfThreads);
     int decision = string2int(stringNumOfThreads);
-    if (decision > 0) {
+    if (decision > 0 && decision <= MAX_NUM_OF_THREADS) {
         cout << "Your decision: " << decision << "." << endl;
         numOfThreads = decision;
     } else {
         cout << "Invalid input: " << stringNumOfThreads << ". Default number will be used." << endl;
+        numOfThreads = DEFAULT_NUM_OF_THREADS;
     }
 
     glutInit(&argc, argv);

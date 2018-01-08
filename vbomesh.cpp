@@ -1,6 +1,6 @@
 #include "vbomesh.h"
 
-int numOfThreads = 4;
+int numOfThreads = MAX_NUM_OF_THREADS;
 vector<thread> threads;
 vector<vec3> points;
 vector<vec3> normals;
@@ -10,13 +10,13 @@ vector<vec3> faceNormals;
 vector<float> onEdge;
 vector<vec2> texCoords;
 vector<vec4> tangents;
-auto pointsToWrite = new vector<vec3>[numOfThreads];
-auto normalsToWrite = new vector<vec3>[numOfThreads];
-auto facesToWrite = new vector<GLuint>[numOfThreads];
-auto normalsBesideToWrite = new vector<vector<vec3>>[numOfThreads];
-auto onEdgeToWrite = new vector<float>[numOfThreads];
-auto texCoordsToWrite = new vector<vec2>[numOfThreads];
-auto tangentsToWrite = new vector<vec4>[numOfThreads];
+auto pointsToWrite = new vector<vec3>[MAX_NUM_OF_THREADS];
+auto normalsToWrite = new vector<vec3>[MAX_NUM_OF_THREADS];
+auto facesToWrite = new vector<GLuint>[MAX_NUM_OF_THREADS];
+auto normalsBesideToWrite = new vector<vector<vec3>>[MAX_NUM_OF_THREADS];
+auto onEdgeToWrite = new vector<float>[MAX_NUM_OF_THREADS];
+auto texCoordsToWrite = new vector<vec2>[MAX_NUM_OF_THREADS];
+auto tangentsToWrite = new vector<vec4>[MAX_NUM_OF_THREADS];
 
 VBOMesh::VBOMesh(const char *fileName, bool center, bool loadTc, bool genTangents) :
         reCenterMesh(center), loadTex(loadTc), genTang(genTangents) {
@@ -132,7 +132,8 @@ void VBOMesh::loadOBJ(const char *fileName) {
     objStream.close();
 
     time_1 = clock();
-    cout << fixed << setprecision(3) << "Loading data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
+    cout << fixed << setprecision(3) << "Loading data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether."
+         << endl;
     time_0 = clock();
 
     if (normals.empty()) {
@@ -151,7 +152,8 @@ void VBOMesh::loadOBJ(const char *fileName) {
     generateNormals(points, faces, faceNormals);
 
     time_1 = clock();
-    cout << fixed << setprecision(3) << "Generating data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
+    cout << fixed << setprecision(3) << "Generating data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether."
+         << endl;
 
     cout << "Adding quads" << endl;
     addQuads();
@@ -161,7 +163,8 @@ void VBOMesh::loadOBJ(const char *fileName) {
     storeVBO(points, normals, texCoords, tangents, faces, normalsBeside, onEdge);
 
     time_1 = clock();
-    cout << fixed << setprecision(3) << "Storing data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
+    cout << fixed << setprecision(3) << "Storing data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether."
+         << endl;
 
     cout << "Loaded mesh from: " << fileName << endl;
     cout << " " << points.size() << " points" << endl;
@@ -463,7 +466,8 @@ void VBOMesh::addQuads() {
     }
     cout << "All threads are finished. Merging data to master..." << endl;
     time_1 = clock();
-    cout << fixed << setprecision(3) << "Calculating data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
+    cout << fixed << setprecision(3) << "Calculating data takes " << (time_1 - time_0) / 1000.0
+         << " seconds altogether." << endl;
     time_0 = clock();
     for (int slot = 0; slot < numOfThreads; slot++) {
         cout << "Merging data of thread " << slot << "..." << endl;
@@ -480,7 +484,8 @@ void VBOMesh::addQuads() {
         tangents.insert(tangents.end(), tangentsToWrite[slot].begin(), tangentsToWrite[slot].end());
     }
     time_1 = clock();
-    cout << fixed << setprecision(3) << "Merging data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
+    cout << fixed << setprecision(3) << "Merging data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether."
+         << endl;
 }
 
 void create(int start, int end, int slot) {
@@ -609,7 +614,7 @@ void addSingleQuad(int i, int j, GLuint a1, GLuint b1, int slot) {
     facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 3));
     facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 4));
     facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 5));
-    // Add face normals
+    // Add normal beside
     vector<vec3> newNormalBeside_empty;
     vector<vec3> newNormalBeside = {faceNormals[i], faceNormals[j]};
     if (i == -1 && j == -1) {

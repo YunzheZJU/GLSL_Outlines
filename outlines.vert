@@ -24,29 +24,28 @@ uniform float LineWidthFactor;
 uniform mat4 ModelViewMatrix;
 uniform mat3 NormalMatrix;
 uniform mat4 ProjectionMatrix;
-uniform mat4 MVP;
 
 void main() {
-    vec3 norm = normalize(NormalMatrix * VertexNormal);
-    vec3 tang = normalize(NormalMatrix * vec3(VertexTangent));
-    vec3 binormal = normalize(cross(norm, tang)) * VertexTangent.w;
+    vec3 normal = normalize(NormalMatrix * VertexNormal);
+    vec3 tangent = normalize(NormalMatrix * vec3(VertexTangent));
+    vec3 binormal = normalize(cross(normal, tangent)) * VertexTangent.w;
     mat3 toObjectLocal = mat3(
-        tang.x, binormal.x, norm.x,
-        tang.y, binormal.y, norm.y,
-        tang.z, binormal.z, norm.z
+        tangent.x, binormal.x, normal.x,
+        tangent.y, binormal.y, normal.y,
+        tangent.z, binormal.z, normal.z
     );
-    vec3 pos;
+    vec3 position;
     vec3 FNormal_0 = NormalMatrix * FaceNormal_0;
     vec3 FNormal_1 = NormalMatrix * FaceNormal_1;
     if (FNormal_0.z * FNormal_1.z < 0 || FaceNormal_0.x == 2.0) {
-        pos = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0)) + LineWidthFactor * norm;
+        position = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0)) + LineWidthFactor * normal;
     }
     else {
-        pos = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0));
+        position = vec3(ModelViewMatrix * vec4(VertexPosition, 1.0));
     }
-    LightDir = normalize(toObjectLocal * (Light.Position.xyz - pos));
-    ViewDir = toObjectLocal * normalize(-pos);
+    LightDir = normalize(toObjectLocal * (Light.Position.xyz - position));
+    ViewDir = toObjectLocal * normalize(-position);
     TexCoord = VertexTexCoord;
     isEdge = onEdge;
-    gl_Position = ProjectionMatrix * vec4(pos, 1.0);
+    gl_Position = ProjectionMatrix * vec4(position, 1.0);
 }
