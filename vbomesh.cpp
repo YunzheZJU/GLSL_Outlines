@@ -1,20 +1,22 @@
 #include "vbomesh.h"
-#include <fstream>
-#include <sstream>
 
+int NUM_OF_THREADS = 4;
 vector<thread> threads;
 vector<vec3> points;
 vector<vec3> normals;
-vector<vec2> texCoords;
 vector<GLuint> faces;
 vector<vector<vec3>> normalsBeside;
 vector<vec3> faceNormals;
 vector<float> onEdge;
+vector<vec2> texCoords;
+vector<vec4> tangents;
 auto pointsToWrite = new vector<vec3>[NUM_OF_THREADS];
 auto normalsToWrite = new vector<vec3>[NUM_OF_THREADS];
 auto facesToWrite = new vector<GLuint>[NUM_OF_THREADS];
 auto normalsBesideToWrite = new vector<vector<vec3>>[NUM_OF_THREADS];
 auto onEdgeToWrite = new vector<float>[NUM_OF_THREADS];
+auto texCoordsToWrite = new vector<vec2>[NUM_OF_THREADS];
+auto tangentsToWrite = new vector<vec4>[NUM_OF_THREADS];
 
 VBOMesh::VBOMesh(const char *fileName, bool center, bool loadTc, bool genTangents) :
         reCenterMesh(center), loadTex(loadTc), genTang(genTangents) {
@@ -27,6 +29,9 @@ void VBOMesh::render() const {
 }
 
 void VBOMesh::loadOBJ(const char *fileName) {
+    int time_0;
+    int time_1;
+    time_0 = clock();
 
     int nFaces = 0;
 
@@ -126,11 +131,14 @@ void VBOMesh::loadOBJ(const char *fileName) {
 
     objStream.close();
 
+    time_1 = clock();
+    cout << fixed << setprecision(3) << "Loading data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
+    time_0 = clock();
+
     if (normals.empty()) {
         generateAveragedNormals(points, normals, faces);
     }
 
-    vector<vec4> tangents;
     if (genTang && !texCoords.empty()) {
         generateTangents(points, normals, faces, texCoords, tangents);
     }
@@ -142,10 +150,18 @@ void VBOMesh::loadOBJ(const char *fileName) {
     cout << "Generating face normals" << endl;
     generateNormals(points, faces, faceNormals);
 
+    time_1 = clock();
+    cout << fixed << setprecision(3) << "Generating data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
+
     cout << "Adding quads" << endl;
     addQuads();
 
+    time_0 = clock();
+
     storeVBO(points, normals, texCoords, tangents, faces, normalsBeside, onEdge);
+
+    time_1 = clock();
+    cout << fixed << setprecision(3) << "Storing data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
 
     cout << "Loaded mesh from: " << fileName << endl;
     cout << " " << points.size() << " points" << endl;
@@ -293,9 +309,6 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
                        const vector<GLuint> &elements,
                        const vector<vector<vec3>> &normalsBeside,
                        const vector<float> &onEdge) {
-    int time_0;
-    int time_1;
-    time_0 = clock();
     auto nVerts = static_cast<GLuint>(points.size());
     faceNum = static_cast<GLuint>(elements.size() / 3);
 
@@ -330,7 +343,6 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
             fn[j * 3 * nVerts + idx + 1] = normalsBeside[i][j].y;
             fn[j * 3 * nVerts + idx + 2] = normalsBeside[i][j].z;
         }
-        idx += 3;
         if (tc != nullptr) {
             tc[tcIdx] = texCoords[i].x;
             tc[tcIdx + 1] = texCoords[i].y;
@@ -343,6 +355,7 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
             tang[tangIdx + 3] = tangents[i].w;
             tangIdx += 4;
         }
+        idx += 3;
     }
     for (unsigned int i = 0; i < elements.size(); ++i) {
         el[i] = elements[i];
@@ -411,8 +424,6 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     delete[] normalsBesideToWrite;
     delete[] onEdgeToWrite;
     printf("End storeVBO\n");
-    time_1 = clock();
-    cout << "Storing data takes " << time_1 - time_0 << " milliseconds altogether." << endl;
 }
 
 void VBOMesh::trimString(string &str) {
@@ -452,10 +463,10 @@ void VBOMesh::addQuads() {
     }
     cout << "All threads are finished. Merging data to master..." << endl;
     time_1 = clock();
-    cout << "Calculating data takes " << time_1 - time_0 << " milliseconds altogether." << endl;
+    cout << fixed << setprecision(3) << "Calculating data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
     time_0 = clock();
     for (int slot = 0; slot < NUM_OF_THREADS; slot++) {
-        cout << "Data of thread " << slot << "..." << endl;
+        cout << "Merging data of thread " << slot << "..." << endl;
         auto sizeOfPoints = static_cast<GLuint>(points.size());
         points.insert(points.end(), pointsToWrite[slot].begin(), pointsToWrite[slot].end());
         normals.insert(normals.end(), normalsToWrite[slot].begin(), normalsToWrite[slot].end());
@@ -465,9 +476,11 @@ void VBOMesh::addQuads() {
         faces.insert(faces.end(), facesToWrite[slot].begin(), facesToWrite[slot].end());
         normalsBeside.insert(normalsBeside.end(), normalsBesideToWrite[slot].begin(), normalsBesideToWrite[slot].end());
         onEdge.insert(onEdge.end(), onEdgeToWrite[slot].begin(), onEdgeToWrite[slot].end());
+        texCoords.insert(texCoords.end(), texCoordsToWrite[slot].begin(), texCoordsToWrite[slot].end());
+        tangents.insert(tangents.end(), tangentsToWrite[slot].begin(), tangentsToWrite[slot].end());
     }
     time_1 = clock();
-    cout << "Merging data takes " << time_1 - time_0 << " milliseconds altogether." << endl;
+    cout << fixed << setprecision(3) << "Merging data takes " << (time_1 - time_0) / 1000.0 << " seconds altogether." << endl;
 }
 
 void create(int start, int end, int slot) {
@@ -597,17 +610,23 @@ void addSingleQuad(int i, int j, GLuint a1, GLuint b1, int slot) {
     facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 4));
     facesToWrite[slot].push_back(static_cast<GLuint>(pointsSize + 5));
     // Add face normals
-    vector<vec3> newVec_empty;
-    vector<vec3> newVec = {faceNormals[i], faceNormals[j]};
+    vector<vec3> newNormalBeside_empty;
+    vector<vec3> newNormalBeside = {faceNormals[i], faceNormals[j]};
     if (i == -1 && j == -1) {
-        newVec = {vec3(2.0), vec3(2.0)};
+        newNormalBeside = {vec3(2.0), vec3(2.0)};
     }
-    normalsBesideToWrite[slot].push_back(newVec_empty);
-    normalsBesideToWrite[slot].push_back(newVec_empty);
-    normalsBesideToWrite[slot].push_back(newVec);
-    normalsBesideToWrite[slot].push_back(newVec);
-    normalsBesideToWrite[slot].push_back(newVec);
-    normalsBesideToWrite[slot].push_back(newVec_empty);
+    normalsBesideToWrite[slot].push_back(newNormalBeside_empty);
+    normalsBesideToWrite[slot].push_back(newNormalBeside_empty);
+    normalsBesideToWrite[slot].push_back(newNormalBeside);
+    normalsBesideToWrite[slot].push_back(newNormalBeside);
+    normalsBesideToWrite[slot].push_back(newNormalBeside);
+    normalsBesideToWrite[slot].push_back(newNormalBeside_empty);
     // Add onEdge
     onEdgeToWrite[slot].insert(onEdgeToWrite[slot].end(), 6, 1.0);
+    // Add texCoords
+    vec2 newTexCoords;
+    texCoordsToWrite[slot].insert(texCoordsToWrite[slot].end(), 6, newTexCoords);
+    // Add tangents
+    vec4 newTangent;
+    tangentsToWrite[slot].insert(tangentsToWrite[slot].end(), 6, newTangent);
 }

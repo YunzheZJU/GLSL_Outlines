@@ -11,6 +11,7 @@
 #include "draw.h"
 #include "vbomesh.h"
 #include "glutils.h"
+#include "tgaio.h"
 
 // Using namespace std for cout
 using namespace std;

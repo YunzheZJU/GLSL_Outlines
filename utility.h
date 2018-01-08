@@ -28,4 +28,6 @@ void updateWindowcenter(int *window, int *windowcenter);
 
 bool screenshot(int width, int height);
 
+int string2int(const string &string_temp);
+
 #endif //GPUBASEDRENDERING_A2_UTILITY_H

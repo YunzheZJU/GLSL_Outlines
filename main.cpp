@@ -1,6 +1,16 @@
 #include "main.h"
 
 int main(int argc, char *argv[]) {
+    string stringNumOfThreads;
+    cout << "Enter the number of threads you want to use (Default is 4): " << endl;
+    getline(cin, stringNumOfThreads);
+    int decision = string2int(stringNumOfThreads);
+    if (decision > 0) {
+        cout << "Your decision: " << NUM_OF_THREADS << "." << endl;
+    } else {
+        cout << "Invalid input: " << stringNumOfThreads << ". Default number will be used." << endl;
+    }
+
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE | GLUT_MULTISAMPLE);
     glutInitWindowSize(1280, 720);

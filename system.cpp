@@ -166,7 +166,7 @@ void ProcessNormalKey(unsigned char k, int x, int y) {
             cout << "Bye." << endl;
             exit(0);
         }
-        // 空格
+            // 空格
         case 32: {
             cout << "Space pressed. Model starts/stops rotating.\n" << endl;
             strcpy(message, "Space pressed. Model starts/stops rotating.");
@@ -442,7 +442,7 @@ void PrintStatus() {
 }
 
 void initVBO() {
-    ogre = new VBOMesh("media/bs_ears.obj");
+    ogre = new VBOMesh("media/bs_ears.obj", false, true, true);
 }
 
 void setShader() {
@@ -456,6 +456,14 @@ void setShader() {
     shader.setUniform("Material.Shininess", 100.0f);
     /////////////////////////////////////////////
     updateShaderMVP();
+
+    // Load diffuse texture
+    glActiveTexture(GL_TEXTURE0);
+    TGAIO::loadTex("media/texture/ogre_diffuse.tga");
+
+    // Load normal map
+    glActiveTexture(GL_TEXTURE1);
+    TGAIO::loadTex("media/texture/ogre_normalmap.tga");
 }
 
 void updateMVPZero() {

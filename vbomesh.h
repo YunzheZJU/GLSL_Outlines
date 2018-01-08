@@ -10,6 +10,8 @@
 
 using namespace std;
 
+extern int NUM_OF_THREADS;
+
 class VBOMesh : public Drawable {
 private:
     GLuint faceNum;

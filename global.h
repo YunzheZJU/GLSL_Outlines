@@ -10,6 +10,8 @@
 #include <iostream>
 #include <iomanip>
 #include <Windows.h>
+#include <fstream>
+#include <sstream>
 
 // Include glew and glut
 #include <glew.h>
@@ -59,6 +61,6 @@ using glm::mat3;
 #define LINE_WIDTH_FACTOR_STEP 0.001
 
 // Define number of threads to use
-#define NUM_OF_THREADS 4
+//#define NUM_OF_THREADS 4
 
 #endif //GPUBASEDRENDERING_A2_GLOBAL_H
