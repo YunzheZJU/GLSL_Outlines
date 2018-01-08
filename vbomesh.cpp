@@ -293,6 +293,9 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
                        const vector<GLuint> &elements,
                        const vector<vector<vec3>> &normalsBeside,
                        const vector<float> &onEdge) {
+    int time_0;
+    int time_1;
+    time_0 = clock();
     auto nVerts = static_cast<GLuint>(points.size());
     faceNum = static_cast<GLuint>(elements.size() / 3);
 
@@ -402,7 +405,14 @@ void VBOMesh::storeVBO(const vector<vec3> &points,
     delete[] el;
     delete[] fn;
     delete[] e;
+    delete[] pointsToWrite;
+    delete[] normalsToWrite;
+    delete[] facesToWrite;
+    delete[] normalsBesideToWrite;
+    delete[] onEdgeToWrite;
     printf("End storeVBO\n");
+    time_1 = clock();
+    cout << "Storing data takes " << time_1 - time_0 << " milliseconds altogether." << endl;
 }
 
 void VBOMesh::trimString(string &str) {
@@ -441,6 +451,9 @@ void VBOMesh::addQuads() {
         }
     }
     cout << "All threads are finished. Merging data to master..." << endl;
+    time_1 = clock();
+    cout << "Calculating data takes " << time_1 - time_0 << " milliseconds altogether." << endl;
+    time_0 = clock();
     for (int slot = 0; slot < NUM_OF_THREADS; slot++) {
         cout << "Data of thread " << slot << "..." << endl;
         auto sizeOfPoints = static_cast<GLuint>(points.size());
@@ -454,7 +467,7 @@ void VBOMesh::addQuads() {
         onEdge.insert(onEdge.end(), onEdgeToWrite[slot].begin(), onEdgeToWrite[slot].end());
     }
     time_1 = clock();
-    cout << "addQuads() takes " << time_1 - time_0 << " milliseconds altogether." << endl;
+    cout << "Merging data takes " << time_1 - time_0 << " milliseconds altogether." << endl;
 }
 
 void create(int start, int end, int slot) {
