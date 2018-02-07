@@ -167,6 +167,7 @@ void ProcessNormalKey(unsigned char k, int x, int y) {
             cout << "Space pressed. Model starts/stops rotating.\n" << endl;
             strcpy(message, "Space pressed. Model starts/stops rotating.");
             bRotating = !bRotating;
+            break;
         }
             // 切换摄像机本体/焦点控制
         case 'Z':
